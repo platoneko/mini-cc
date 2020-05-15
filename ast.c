@@ -1,4 +1,4 @@
-#include "def.h"
+#include "ast.h"
 
 struct ASTNode *mknode(int num, int type, int pos, ...) {
     struct ASTNode *T = (struct ASTNode *)calloc(1, sizeof(struct ASTNode));
@@ -29,10 +29,14 @@ void display(struct ASTNode *T,int indent)
             display(T->ptr[1], indent+6);        //EXT_DEC_LIST
             break;
 	    case TYPE:          
-            printf("%*cTYPE： %s\n", indent, ' ', T->type_id);
+            printf("%*cTYPE：%s\n", indent, ' ', T->type_id);
             break;
         case EXT_DEC_LIST:  
-            display(T->ptr[0], indent);     //ID
+            if (T->ptr[0]->type == ID) {
+                printf("%*c%s\n", indent, ' ', T->ptr[0]->type_id);
+            } else  {
+                display(T->ptr[0], indent);  //VAR_DEC
+            }
             display(T->ptr[1], indent);     //EXT_DEC_LIST
             break;
 	    case FUNC_DEF:
@@ -99,7 +103,7 @@ void display(struct ASTNode *T,int indent)
             printf("%*cELSE_STMT：(%d)\n", indent+3, ' ', T->pos);
             display(T->ptr[2], indent+6);      //Statements
             break;
-        case DEF_LIST:      
+        case VAR_DEF_LIST:      
             display(T->ptr[0], indent);    //VAR_DEF
             display(T->ptr[1], indent);    //DEF_LIST
             break;
@@ -109,14 +113,17 @@ void display(struct ASTNode *T,int indent)
             printf("%*cVAR_NAME：\n", indent+3, ' ');
             display(T->ptr[1], indent+6);   //DEC_LIST
             break;
-        case DEC_LIST:
+        case VAR_DEC_LIST:
             if (T->ptr[0]->type == ID) {
                 printf("%*c%s\n", indent, ' ', T->ptr[0]->type_id);
-            } else {
-                printf("%*c%s ASSIGNOP\n", indent, ' ', T->ptr[0]->ptr[0]->type_id);
-                display(T->ptr[0]->ptr[1], indent+3);  //EXP
+            } else  {
+                display(T->ptr[0], indent);  //VAR_DEC
             }
             display(T->ptr[1], indent); //DEC_LIST
+            break;
+        case VAR_DEC:
+            printf("%*c%s ASSIGNOP\n", indent, ' ', T->type_id);
+            display(T->ptr[0], indent+3);   //EXP
             break;
 	    case ID:	        
             printf("%*c%s\n", indent, ' ', T->type_id);
@@ -127,8 +134,16 @@ void display(struct ASTNode *T,int indent)
 	    case FLOAT:	       
             printf("%*cFLAOT：%f\n", indent, ' ', T->type_float);
             break;
+        case CHAR:	       
+            printf("%*cCHAR：%d\n", indent, ' ', T->type_char);
+            break;
 	    case ASSIGNOP:
             printf("%*cASSIGNOP\n", indent, ' ');
+            display(T->ptr[0], indent+3);
+            display(T->ptr[1], indent+3);
+            break;
+        case COMP_ASSIGN:
+            printf("%*cCOMP_ASSIGN %s\n", indent, ' ', T->type_id);
             display(T->ptr[0], indent+3);
             display(T->ptr[1], indent+3);
             break;
@@ -172,6 +187,31 @@ void display(struct ASTNode *T,int indent)
             display(T->ptr[0], indent+3);
             display(T->ptr[1], indent+3);
             break;
+        case BITAND:
+            printf("%*cBITAND\n", indent, ' ');
+            display(T->ptr[0], indent+3);
+            display(T->ptr[1], indent+3);
+            break;
+        case BITOR:
+            printf("%*cBITOR\n", indent, ' ');
+            display(T->ptr[0], indent+3);
+            display(T->ptr[1], indent+3);
+            break;
+        case BITXOR:
+            printf("%*cBITXOR\n", indent, ' ');
+            display(T->ptr[0], indent+3);
+            display(T->ptr[1], indent+3);
+            break;
+        case BITSHL:
+            printf("%*cBITSHL\n", indent, ' ');
+            display(T->ptr[0], indent+3);
+            display(T->ptr[1], indent+3);
+            break;
+        case BITSHR:
+            printf("%*cBITSHR\n", indent, ' ');
+            display(T->ptr[0], indent+3);
+            display(T->ptr[1], indent+3);
+            break;
 	    case NOT:
             printf("%*cNOT\n", indent, ' ');
             display(T->ptr[0], indent+3);
@@ -186,8 +226,7 @@ void display(struct ASTNode *T,int indent)
             display(T->ptr[0], indent+3);
             break;
         case FUNC_CALL: 
-            printf("%*cFUNC_CALL：(%d)\n", indent, ' ', T->pos);
-            printf("%*cFUNC_NAME：%s\n", indent+3, ' ', T->type_id);
+            printf("%*cFUNC_CALL：%s(%d)\n", indent, ' ', T->type_id, T->pos);
             if (T->ptr[0]) {
                 printf("%*cPARAM_LIST：\n", indent+3, ' ');
                 display(T->ptr[0], indent+6);   //ARGS
@@ -198,6 +237,31 @@ void display(struct ASTNode *T,int indent)
 	    case ARGS:
             display(T->ptr[0], indent);     //EXP
             display(T->ptr[1], indent);     //ARGS
+            break;
+        case CONTINUE:
+            printf("%*cCONTINUE：(%d)\n", indent, ' ', T->pos);
+            break;
+        case BREAK:
+            printf("%*cBREAK：(%d)\n", indent, ' ', T->pos);
+            break;
+        case ARRAY_DEC:
+            printf("%*cARRAY_DEC:%s\n", indent, ' ', T->type_id);
+            printf("%*cARRAY_SUB_LIST:\n", indent+3, ' ');
+            display(T->ptr[0], indent+6);   //ARRAY_SUB_LIST
+            display(T->ptr[1], indent+3);   
+            break;
+        case ARRAY_SUB_LIST:
+            display(T->ptr[0], indent);
+            display(T->ptr[1], indent);     //ARRAY_SUB_LIST
+            break;
+        case ARRAY_VAL:
+            printf("%*cARRAY_VAL：%s\n", indent, ' ', T->type_id);
+            printf("%*cARRAY_SUB_LIST:\n", indent+3, ' ');
+            display(T->ptr[0], indent+6);
+            break;
+        case ARRAY_INIT_LIST:
+            printf("%*cARRAY_INIT_LIST:\n", indent, ' ');
+            display(T->ptr[0], indent+3);
             break;
         }
     }
