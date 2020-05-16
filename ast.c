@@ -239,10 +239,10 @@ void display(struct ASTNode *T,int indent)
             display(T->ptr[1], indent);     //ARGS
             break;
         case CONTINUE:
-            printf("%*cCONTINUE：(%d)\n", indent, ' ', T->pos);
+            printf("%*cCONTINUE(%d)\n", indent, ' ', T->pos);
             break;
         case BREAK:
-            printf("%*cBREAK：(%d)\n", indent, ' ', T->pos);
+            printf("%*cBREAK(%d)\n", indent, ' ', T->pos);
             break;
         case ARRAY_DEC:
             printf("%*cARRAY_DEC:%s\n", indent, ' ', T->type_id);

@@ -10,18 +10,20 @@
 %option yylineno  noyywrap
 
 id   	[A-Za-z_][A-Za-z0-9_]*  
-int    	0[xX][0-9a-fA-F]+|[0-9]+
-float  	(([0-9]*\.[0-9]+)|([0-9]+\.))([Ee][+-]?[0-9]+)?
+int    	[0-9]+
+hex     0[xX][0-9a-fA-F]+
+float  	[0-9]*\.[0-9]+|[0-9]+\.
+expo    [Ee][+-]?[0-9]+
 char    '([ -&(-[\]-~]|(\\([abfnrtv\\?'"0]|([0-3][0-7][0-7])|(x[0-9a-fA-F][0-9a-fA-F]))))'
 lcomment \/\/[^\n]*
 bcomment \/\*([^\*]|(\*)*[^\*/])*(\*)*\*\/
-invalid  [0-9]+[a-zA-Z_][A-Za-z0-9_]*
+invalid  [0-9]+[A-Za-z_][A-Za-z_0-9]*
 
 %%
 {lcomment}  { printf("(LCOMMENT, %s)\n", yytext); }
 {bcomment}  { printf("(BCOMMENT, %s)\n", yytext); }
-{int}		{ printf("(INT, %s)\n", yytext); yylval.type_int=atoi_(yytext); return INT; }
-{float}     { printf("(FLOAT, %s)\n", yytext); yylval.type_float=atof(yytext); return FLOAT; }
+{int}|{hex}	{ printf("(INT, %s)\n", yytext); yylval.type_int=atoi_(yytext); return INT; }
+{float}|(({int}|{float}){expo})     { printf("(FLOAT, %s)\n", yytext); yylval.type_float=atof(yytext); return FLOAT; }
 {char}      { printf("(CHAR, %s)\n", yytext); yytext[strlen(yytext)-1]=0; yylval.type_char=atoc(yytext+1); return CHAR; }
 
 "int"       { printf("(TYPE, %s)\n", yytext); strcpy(yylval.type_id, yytext); return TYPE; }
