@@ -38,7 +38,7 @@ void yyerror(const char* fmt, ...);
 %token IF ELSE WHILE RETURN CONTINUE BREAK
 /*以下为接在上述token后依次编码的枚举常量，作为AST结点类型标记*/
 %token EXT_DEF_LIST EXT_VAR_DEF FUNC_DEF FUNC_DEC EXT_DEC_LIST PARAM_LIST PARAM_DEC VAR_DEF VAR_DEC VAR_DEC_LIST VAR_DEF_LIST COMP_STM STM_LIST EXP_STMT IF_THEN IF_THEN_ELSE
-%token FUNC_CALL ARGS ARRAY_DEC ARRAY_VAL ARRAY_SUB_LIST ARRAY_INIT_LIST
+%token FUNC_CALL ARGS ARRAY_DEC ARRAY_VAL ARRAY_SUB_LIST ARRAY_INIT_LIST ARRAY_PARAM
 
 %right ASSIGNOP COMP_ASSIGN
 %left OR
@@ -84,6 +84,8 @@ ArrayDec: ID ArraySubList { $$ = mknode(1, ARRAY_DEC, yylineno, $2); strcpy($$->
 
 ArraySubList: LS Exp RS { $$ = mknode(1, ARRAY_SUB_LIST, yylineno, $2); }
 | LS Exp RS ArraySubList { $$ = mknode(2, ARRAY_SUB_LIST, yylineno, $2, $4); }
+| LS RS { $$ = mknode(1, ARRAY_SUB_LIST, yylineno, NULL); }
+| LS RS ArraySubList { $$ = mknode(2, ARRAY_SUB_LIST, yylineno, NULL, $3); }
 ;
 
 ArrayInitList: LC Args RC { $$ = mknode(1, ARRAY_INIT_LIST, yylineno, $2); }
@@ -97,7 +99,8 @@ ParamList: ParamDec { $$ = mknode(1, PARAM_LIST, yylineno, $1); }
 | ParamDec COMMA ParamList { $$ = mknode(2, PARAM_LIST, yylineno, $1, $3); }
 ;
 
-ParamDec: Specifier ID { struct ASTNode *T = mknode(0, ID, yylineno); strcpy(T->type_id, $2); $$ = mknode(2, PARAM_DEC, yylineno, $1, T); }
+ParamDec: Specifier ID { $$ = mknode(1, PARAM_DEC, yylineno, $1); strcpy($$->type_id, $2); }
+| Specifier ID ArraySubList { $$ = mknode(2, ARRAY_PARAM, yylineno, $1, $3); strcpy($$->type_id, $2); }
 ;
 
 CompSt: LC VarDefList StmList RC { $$ = mknode(2, COMP_STM, yylineno, $2, $3); }

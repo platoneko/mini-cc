@@ -59,7 +59,13 @@ void display(struct ASTNode *T,int indent)
             display(T->ptr[1], indent);     //PARAM_LIST
             break;
 	    case PARAM_DEC:          
-            printf("%*c%s：%s\n", indent, T->ptr[0]->type_id, T->ptr[1]->type_id);
+            printf("%*cNAME:%s,TYPE:%s\n", indent, ' ', T->type_id, T->ptr[0]->type_id);
+            break;
+        case ARRAY_PARAM:
+            printf("%*cARRAY_PARAM:\n", indent, ' ');          
+            printf("%*cNAME:%s,TYPE:%s\n", indent+3, ' ', T->type_id, T->ptr[0]->type_id);
+            printf("%*cARRAY_SUB_LIST:\n", indent+3, ' '); 
+            display(T->ptr[1], indent+6);
             break;
 	    case EXP_STMT:      
             printf("%*cEXP_STMT：(%d)\n", indent, ' ', T->pos);
@@ -126,16 +132,16 @@ void display(struct ASTNode *T,int indent)
             display(T->ptr[0], indent+3);   //EXP
             break;
 	    case ID:	        
-            printf("%*c%s\n", indent, ' ', T->type_id);
+            printf("%*c%s:ID\n", indent, ' ', T->type_id);
             break;
 	    case INT:	        
-            printf("%*cINT：%d\n", indent, ' ', T->type_int);
+            printf("%*c%d:INT\n", indent, ' ', T->type_int);
             break;
 	    case FLOAT:	       
-            printf("%*cFLAOT：%f\n", indent, ' ', T->type_float);
+            printf("%*c%f:FLOAT\n", indent, ' ', T->type_float);
             break;
         case CHAR:	       
-            printf("%*cCHAR：%d\n", indent, ' ', T->type_char);
+            printf("%*c%d:CHAR\n", indent, ' ', T->type_char);
             break;
 	    case ASSIGNOP:
             printf("%*cASSIGNOP\n", indent, ' ');
@@ -251,8 +257,13 @@ void display(struct ASTNode *T,int indent)
             display(T->ptr[1], indent+3);   
             break;
         case ARRAY_SUB_LIST:
-            display(T->ptr[0], indent);
-            display(T->ptr[1], indent);     //ARRAY_SUB_LIST
+            if (T->ptr[0] == NULL) {
+                printf("%*cNO EXP\n", indent, ' ');
+                display(T->ptr[1], indent);     //ARRAY_SUB_LIST
+            } else {
+                display(T->ptr[0], indent);     //EXP
+                display(T->ptr[1], indent);     //ARRAY_SUB_LIST
+            }
             break;
         case ARRAY_VAL:
             printf("%*cARRAY_VAL：%s\n", indent, ' ', T->type_id);
