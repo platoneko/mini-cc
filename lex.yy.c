@@ -579,8 +579,10 @@ char *yytext;
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#line 582 "lex.yy.c"
-#line 583 "lex.yy.c"
+
+extern "C" int yylex();
+#line 584 "lex.yy.c"
+#line 585 "lex.yy.c"
 
 #define INITIAL 0
 
@@ -797,9 +799,9 @@ YY_DECL
 		}
 
 	{
-#line 22 "lex.l"
+#line 24 "lex.l"
 
-#line 802 "lex.yy.c"
+#line 804 "lex.yy.c"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -868,232 +870,445 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 23 "lex.l"
-{ printf("(LCOMMENT, %s)\n", yytext); }
+#line 25 "lex.l"
+{
+    #ifdef DEBUG
+    printf("(LCOMMENT, %s)\n", yytext);
+    #endif
+}
 	YY_BREAK
 case 2:
 /* rule 2 can match eol */
 YY_RULE_SETUP
-#line 24 "lex.l"
-{ printf("(BCOMMENT, %s)\n", yytext); }
+#line 31 "lex.l"
+{
+    #ifdef DEBUG
+    printf("(BCOMMENT, %s)\n", yytext);
+    #endif
+}
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 25 "lex.l"
-{ printf("(INT, %s)\n", yytext); yylval.type_int=atoi_(yytext); return INT; }
+#line 37 "lex.l"
+{
+    #ifdef DEBUG
+    printf("(INT, %s)\n", yytext);
+    #endif
+    yylval.type_int=atoi_(yytext);
+    return INT;
+}
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 26 "lex.l"
-{ printf("(FLOAT, %s)\n", yytext); yylval.type_float=atof(yytext); return FLOAT; }
+#line 45 "lex.l"
+{
+    #ifdef DEBUG
+    printf("(FLOAT, %s)\n", yytext);
+    #endif
+    yylval.type_float=atof(yytext);
+    return FLOAT; 
+}
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 27 "lex.l"
-{ printf("(CHAR, %s)\n", yytext); yytext[strlen(yytext)-1]=0; yylval.type_char=atoc(yytext+1); return CHAR; }
+#line 53 "lex.l"
+{
+    #ifdef DEBUG
+    printf("(CHAR, %s)\n", yytext);
+    #endif
+    yytext[strlen(yytext)-1]=0; 
+    yylval.type_char=atoc(yytext+1);
+    return CHAR; 
+}
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 29 "lex.l"
-{ printf("(TYPE, %s)\n", yytext); strcpy(yylval.type_id, yytext); return TYPE; }
+#line 62 "lex.l"
+{
+    #ifdef DEBUG
+    printf("(TYPE, %s)\n", yytext);
+    #endif
+    strcpy(yylval.type_id, yytext); 
+    return TYPE; 
+}
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 30 "lex.l"
-{ printf("(TYPE, %s)\n", yytext); strcpy(yylval.type_id, yytext); return TYPE; }
+#line 70 "lex.l"
+{
+    #ifdef DEBUG
+    printf("(TYPE, %s)\n", yytext);
+    #endif
+    strcpy(yylval.type_id, yytext); 
+    return TYPE; 
+}
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 31 "lex.l"
-{ printf("(TYPE, %s)\n", yytext); strcpy(yylval.type_id, yytext); return TYPE; }
+#line 78 "lex.l"
+{
+    #ifdef DEBUG
+    printf("(TYPE, %s)\n", yytext);
+    #endif
+    strcpy(yylval.type_id, yytext); 
+    return TYPE; 
+}
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 33 "lex.l"
-{ printf("(RETURN, -)\n"); return RETURN; }
+#line 86 "lex.l"
+{
+    #ifdef DEBUG
+    printf("(RETURN, -)\n");
+    #endif
+    return RETURN; 
+}
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 34 "lex.l"
-{ printf("(IF, -)\n"); return IF; }
+#line 93 "lex.l"
+{
+    #ifdef DEBUG
+    printf("(IF, -)\n");
+    #endif
+    return IF; 
+}
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 35 "lex.l"
-{ printf("(ELSE, -)\n"); return ELSE; }
+#line 100 "lex.l"
+{ 
+    #ifdef DEBUG
+    printf("(ELSE, -)\n"); 
+    #endif
+    return ELSE; 
+}
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 36 "lex.l"
-{ printf("(WHILE, -)\n"); return WHILE; }
+#line 107 "lex.l"
+{
+    #ifdef DEBUG
+    printf("(WHILE, -)\n"); 
+    #endif
+    return WHILE; 
+}
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 37 "lex.l"
-{ printf("(CONTINUE, -)\n"); return CONTINUE; }
+#line 114 "lex.l"
+{
+    #ifdef DEBUG
+    printf("(CONTINUE, -)\n"); 
+    #endif
+    return CONTINUE; 
+}
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 38 "lex.l"
-{ printf("(BREAK, -)\n"); return BREAK; }
+#line 121 "lex.l"
+{
+    #ifdef DEBUG
+    printf("(BREAK, -)\n"); 
+    #endif
+    return BREAK; 
+}
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 40 "lex.l"
-{ printf("(ID, %s)\n", yytext); strcpy(yylval.type_id, yytext); return ID; }
+#line 128 "lex.l"
+{ 
+    #ifdef DEBUG
+    printf("(ID, %s)\n", yytext); 
+    #endif
+    strcpy(yylval.type_id, yytext); 
+    return ID; 
+}
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 41 "lex.l"
-{ printf("(SEMI, -)\n"); return SEMI; }
+#line 136 "lex.l"
+{
+    #ifdef DEBUG
+    printf("(SEMI, -)\n"); 
+    #endif
+    return SEMI; 
+}
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 42 "lex.l"
-{ printf("(COMMA, -)\n"); return COMMA; }
+#line 143 "lex.l"
+{ 
+    #ifdef DEBUG
+    printf("(COMMA, -)\n"); 
+    #endif
+    return COMMA; 
+}
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 43 "lex.l"
-{ printf("(RELOP, %s)\n", yytext); strcpy(yylval.type_id, yytext); return RELOP; }
+#line 150 "lex.l"
+{
+    #ifdef DEBUG
+    printf("(RELOP, %s)\n", yytext); 
+    #endif
+    strcpy(yylval.type_id, yytext); 
+    return RELOP; 
+}
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 45 "lex.l"
-{ printf("(COMP_ASSIGN, %s)\n", yytext); strcpy(yylval.type_id, yytext); return COMP_ASSIGN; }
+#line 158 "lex.l"
+{
+    #ifdef DEBUG
+    printf("(COMP_ASSIGN, %s)\n", yytext); 
+    #endif
+    strcpy(yylval.type_id, yytext); 
+    return COMP_ASSIGN; 
+}
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 47 "lex.l"
-{ printf("(ASSIGNOP, -)\n"); return ASSIGNOP; }
+#line 166 "lex.l"
+{ 
+    #ifdef DEBUG
+    printf("(ASSIGNOP, -)\n"); 
+    #endif
+    return ASSIGNOP; 
+}
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 48 "lex.l"
-{ printf("(PLUS, -)\n"); return PLUS; }
+#line 173 "lex.l"
+{ 
+    #ifdef DEBUG
+    printf("(PLUS, -)\n"); 
+    #endif
+    return PLUS; 
+}
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 49 "lex.l"
-{ printf("(MINUS, -)\n"); return MINUS; }
+#line 180 "lex.l"
+{
+    #ifdef DEBUG 
+    printf("(MINUS, -)\n"); 
+    #endif
+    return MINUS; 
+}
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 50 "lex.l"
-{ printf("(STAR, -)\n"); return STAR; }
+#line 187 "lex.l"
+{
+    #ifdef DEBUG 
+    printf("(STAR, -)\n"); 
+    #endif
+    return STAR; 
+}
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 51 "lex.l"
-{ printf("(DIV, -)\n"); return DIV; }
+#line 194 "lex.l"
+{ 
+    #ifdef DEBUG
+    printf("(DIV, -)\n"); 
+    #endif
+    return DIV; 
+}
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 52 "lex.l"
-{ printf("(MOD, -)\n"); return MOD; }
+#line 201 "lex.l"
+{ 
+    #ifdef DEBUG
+    printf("(MOD, -)\n");
+    #endif 
+    return MOD; 
+}
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 54 "lex.l"
-{ printf("(BITAND, -)\n"); return BITAND; }
+#line 208 "lex.l"
+{ 
+    #ifdef DEBUG
+    printf("(BITAND, -)\n"); 
+    #endif
+    return BITAND; 
+}
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 55 "lex.l"
-{ printf("(BITOR, -)\n"); return BITOR; }
+#line 215 "lex.l"
+{ 
+    #ifdef DEBUG
+    printf("(BITOR, -)\n"); 
+    #endif
+    return BITOR; 
+}
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 56 "lex.l"
-{ printf("(BITXOR, -)\n"); return BITXOR; }
+#line 222 "lex.l"
+{ 
+    #ifdef DEBUG
+    printf("(BITXOR, -)\n"); 
+    #endif
+    return BITXOR; 
+}
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 57 "lex.l"
-{ printf("(BITSHL, -)\n"); return BITSHL; }
+#line 229 "lex.l"
+{ 
+    #ifdef DEBUG
+    printf("(BITSHL, -)\n"); 
+    #endif
+    return BITSHL; 
+}
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 58 "lex.l"
-{ printf("(BITSHR, -)\n"); return BITSHR; }
+#line 236 "lex.l"
+{ 
+    #ifdef DEBUG
+    printf("(BITSHR, -)\n"); 
+    #endif
+    return BITSHR; 
+}
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 60 "lex.l"
-{ printf("(DPLUS, -)\n"); return DPLUS; }
+#line 243 "lex.l"
+{ 
+    #ifdef DEBUG
+    printf("(DPLUS, -)\n"); 
+    #endif
+    return DPLUS; 
+}
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 61 "lex.l"
-{ printf("(DMINUS, -)\n"); return DMINUS; }
+#line 250 "lex.l"
+{ 
+    #ifdef DEBUG
+    printf("(DMINUS, -)\n"); 
+    #endif
+    return DMINUS; 
+}
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 63 "lex.l"
-{ printf("(AND, -)\n"); return AND; }
+#line 257 "lex.l"
+{ 
+    #ifdef DEBUG
+    printf("(AND, -)\n"); 
+    #endif
+    return AND; 
+}
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 64 "lex.l"
-{ printf("(OR, -)\n"); return OR; }
+#line 264 "lex.l"
+{ 
+    #ifdef DEBUG
+    printf("(OR, -)\n"); 
+    #endif
+    return OR; 
+}
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 65 "lex.l"
-{ printf("(NOT, -)\n"); return NOT; }
+#line 271 "lex.l"
+{ 
+    #ifdef DEBUG
+    printf("(NOT, -)\n"); 
+    #endif
+    return NOT; 
+}
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 66 "lex.l"
-{ printf("(LP, -)\n"); return LP; }
+#line 278 "lex.l"
+{ 
+    #ifdef DEBUG
+    printf("(LP, -)\n"); 
+    #endif
+    return LP; 
+}
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
-#line 67 "lex.l"
-{ printf("(RP, -)\n"); return RP; }
+#line 285 "lex.l"
+{
+    #ifdef DEBUG 
+    printf("(RP, -)\n"); 
+    #endif
+    return RP; 
+}
 	YY_BREAK
 case 38:
 YY_RULE_SETUP
-#line 68 "lex.l"
-{ printf("(LC, -)\n"); return LC; }
+#line 292 "lex.l"
+{ 
+    #ifdef DEBUG
+    printf("(LC, -)\n"); 
+    #endif
+    return LC; 
+}
 	YY_BREAK
 case 39:
 YY_RULE_SETUP
-#line 69 "lex.l"
-{ printf("(RC, -)\n"); return RC; }
+#line 299 "lex.l"
+{ 
+    #ifdef DEBUG
+    printf("(RC, -)\n"); 
+    #endif
+    return RC; 
+}
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
-#line 70 "lex.l"
-{ printf("(LS, -)\n"); return LS; }
+#line 306 "lex.l"
+{ 
+    #ifdef DEBUG
+    printf("(LS, -)\n"); 
+    #endif
+    return LS; 
+}
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
-#line 71 "lex.l"
-{ printf("(RS, -)\n"); return RS; }
+#line 313 "lex.l"
+{ 
+    #ifdef DEBUG
+    printf("(RS, -)\n"); 
+    #endif
+    return RS; 
+}
 	YY_BREAK
 case 42:
 /* rule 42 can match eol */
 YY_RULE_SETUP
-#line 72 "lex.l"
+#line 320 "lex.l"
 {}
 	YY_BREAK
 case 43:
 YY_RULE_SETUP
-#line 74 "lex.l"
+#line 322 "lex.l"
 { printf("Lex Error: Invalid identifier \"%s\" at Line %d\n", yytext, yylineno); }
 	YY_BREAK
 case 44:
 YY_RULE_SETUP
-#line 75 "lex.l"
+#line 323 "lex.l"
 { printf("Lex Error: Mysterious character \"%s\" at Line %d\n", yytext, yylineno); }
 	YY_BREAK
 case 45:
 YY_RULE_SETUP
-#line 76 "lex.l"
+#line 324 "lex.l"
 ECHO;
 	YY_BREAK
-#line 1096 "lex.yy.c"
+#line 1311 "lex.yy.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -2110,4 +2325,4 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 76 "lex.l"
+#line 324 "lex.l"

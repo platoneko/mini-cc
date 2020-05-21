@@ -1,9 +1,9 @@
 #include "ast.h"
 
-struct ASTNode *mknode(int num, int type, int pos, ...) {
+struct ASTNode *mknode(int num, int kind, int pos, ...) {
     struct ASTNode *T = (struct ASTNode *)calloc(1, sizeof(struct ASTNode));
     int i;
-    T->type = type;
+    T->kind = kind;
     T->pos = pos;
     va_list pArgs;
     va_start(pArgs, pos);
@@ -17,7 +17,7 @@ struct ASTNode *mknode(int num, int type, int pos, ...) {
 void display(struct ASTNode *T,int indent)
 {
     if (T) {
-	    switch (T->type) {
+	    switch (T->kind) {
 	    case EXT_DEF_LIST:  
             display(T->ptr[0], indent);    //EXT_VAR_DEF
             display(T->ptr[1], indent);    //EXT_DEC_LIST
@@ -32,7 +32,7 @@ void display(struct ASTNode *T,int indent)
             printf("%*cTYPE：%s\n", indent, ' ', T->type_id);
             break;
         case EXT_DEC_LIST:  
-            if (T->ptr[0]->type == ID) {
+            if (T->ptr[0]->kind == ID) {
                 printf("%*c%s\n", indent, ' ', T->ptr[0]->type_id);
             } else  {
                 display(T->ptr[0], indent);  //VAR_DEC
@@ -120,7 +120,7 @@ void display(struct ASTNode *T,int indent)
             display(T->ptr[1], indent+6);   //DEC_LIST
             break;
         case VAR_DEC_LIST:
-            if (T->ptr[0]->type == ID) {
+            if (T->ptr[0]->kind == ID) {
                 printf("%*c%s\n", indent, ' ', T->ptr[0]->type_id);
             } else  {
                 display(T->ptr[0], indent);  //VAR_DEC
@@ -265,8 +265,8 @@ void display(struct ASTNode *T,int indent)
                 display(T->ptr[1], indent);     //ARRAY_SUB_LIST
             }
             break;
-        case ARRAY_VAL:
-            printf("%*cARRAY_VAL：%s\n", indent, ' ', T->type_id);
+        case ARRAY_REF:
+            printf("%*cARRAY_REF：%s\n", indent, ' ', T->type_id);
             printf("%*cARRAY_SUB_LIST:\n", indent+3, ' ');
             display(T->ptr[0], indent+6);
             break;

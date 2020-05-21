@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+
+extern "C" int yylex();
 %}
 
 %option yylineno  noyywrap
@@ -20,55 +22,301 @@ bcomment \/\*([^\*]|(\*)*[^\*/])*(\*)*\*\/
 invalid  [0-9]+[A-Za-z_][A-Za-z_0-9]*
 
 %%
-{lcomment}  { printf("(LCOMMENT, %s)\n", yytext); }
-{bcomment}  { printf("(BCOMMENT, %s)\n", yytext); }
-{int}|{hex}	{ printf("(INT, %s)\n", yytext); yylval.type_int=atoi_(yytext); return INT; }
-{float}|(({int}|{float}){expo})     { printf("(FLOAT, %s)\n", yytext); yylval.type_float=atof(yytext); return FLOAT; }
-{char}      { printf("(CHAR, %s)\n", yytext); yytext[strlen(yytext)-1]=0; yylval.type_char=atoc(yytext+1); return CHAR; }
+{lcomment} {
+    #ifdef DEBUG
+    printf("(LCOMMENT, %s)\n", yytext);
+    #endif
+}
 
-"int"       { printf("(TYPE, %s)\n", yytext); strcpy(yylval.type_id, yytext); return TYPE; }
-"float"		{ printf("(TYPE, %s)\n", yytext); strcpy(yylval.type_id, yytext); return TYPE; }
-"char"		{ printf("(TYPE, %s)\n", yytext); strcpy(yylval.type_id, yytext); return TYPE; }
+{bcomment} {
+    #ifdef DEBUG
+    printf("(BCOMMENT, %s)\n", yytext);
+    #endif
+}
 
-"return"    { printf("(RETURN, -)\n"); return RETURN; }
-"if"        { printf("(IF, -)\n"); return IF; }
-"else"      { printf("(ELSE, -)\n"); return ELSE; }
-"while"     { printf("(WHILE, -)\n"); return WHILE; }
-"continue"  { printf("(CONTINUE, -)\n"); return CONTINUE; }
-"break"     { printf("(BREAK, -)\n"); return BREAK; }
+{int}|{hex}	{
+    #ifdef DEBUG
+    printf("(INT, %s)\n", yytext);
+    #endif
+    yylval.type_int=atoi_(yytext);
+    return INT;
+}
 
-{id}       	{ printf("(ID, %s)\n", yytext); strcpy(yylval.type_id, yytext); return ID; }
-";"			{ printf("(SEMI, -)\n"); return SEMI; }
-","			{ printf("(COMMA, -)\n"); return COMMA; }
-"=="|"!="|">="|"<="|">"|"<"	{ printf("(RELOP, %s)\n", yytext); strcpy(yylval.type_id, yytext); return RELOP; }
+{float}|(({int}|{float}){expo}) {
+    #ifdef DEBUG
+    printf("(FLOAT, %s)\n", yytext);
+    #endif
+    yylval.type_float=atof(yytext);
+    return FLOAT; 
+}
 
-"+="|"-="|"*="|"/="|"%="|"&="|"|="|"^="|"<<="|">>=" { printf("(COMP_ASSIGN, %s)\n", yytext); strcpy(yylval.type_id, yytext); return COMP_ASSIGN; }
+{char} {
+    #ifdef DEBUG
+    printf("(CHAR, %s)\n", yytext);
+    #endif
+    yytext[strlen(yytext)-1]=0; 
+    yylval.type_char=atoc(yytext+1);
+    return CHAR; 
+}
 
-"="			{ printf("(ASSIGNOP, -)\n"); return ASSIGNOP; }
-"+"			{ printf("(PLUS, -)\n"); return PLUS; }
-"-"			{ printf("(MINUS, -)\n"); return MINUS; }
-"*"			{ printf("(STAR, -)\n"); return STAR; }
-"/"			{ printf("(DIV, -)\n"); return DIV; }
-"%"			{ printf("(MOD, -)\n"); return MOD; }
+"int" {
+    #ifdef DEBUG
+    printf("(TYPE, %s)\n", yytext);
+    #endif
+    strcpy(yylval.type_id, yytext); 
+    return TYPE; 
+}
 
-"&"         { printf("(BITAND, -)\n"); return BITAND; }
-"|"         { printf("(BITOR, -)\n"); return BITOR; }
-"^"         { printf("(BITXOR, -)\n"); return BITXOR; }
-"<<"        { printf("(BITSHL, -)\n"); return BITSHL; }
-">>"        { printf("(BITSHR, -)\n"); return BITSHR; }
+"float"	{
+    #ifdef DEBUG
+    printf("(TYPE, %s)\n", yytext);
+    #endif
+    strcpy(yylval.type_id, yytext); 
+    return TYPE; 
+}
 
-"++"		{ printf("(DPLUS, -)\n"); return DPLUS; }
-"--"		{ printf("(DMINUS, -)\n"); return DMINUS; }
+"char" {
+    #ifdef DEBUG
+    printf("(TYPE, %s)\n", yytext);
+    #endif
+    strcpy(yylval.type_id, yytext); 
+    return TYPE; 
+}
 
-"&&"        { printf("(AND, -)\n"); return AND; }
-"||"        { printf("(OR, -)\n"); return OR; }
-"!"			{ printf("(NOT, -)\n"); return NOT; }
-"("			{ printf("(LP, -)\n"); return LP; }
-")"			{ printf("(RP, -)\n"); return RP; }
-"{"			{ printf("(LC, -)\n"); return LC; }
-"}"			{ printf("(RC, -)\n"); return RC; }
-"["         { printf("(LS, -)\n"); return LS; }
-"]"         { printf("(RS, -)\n"); return RS; }
+"return" {
+    #ifdef DEBUG
+    printf("(RETURN, -)\n");
+    #endif
+    return RETURN; 
+}
+
+"if" {
+    #ifdef DEBUG
+    printf("(IF, -)\n");
+    #endif
+    return IF; 
+}
+
+"else" { 
+    #ifdef DEBUG
+    printf("(ELSE, -)\n"); 
+    #endif
+    return ELSE; 
+}
+
+"while" {
+    #ifdef DEBUG
+    printf("(WHILE, -)\n"); 
+    #endif
+    return WHILE; 
+}
+
+"continue" {
+    #ifdef DEBUG
+    printf("(CONTINUE, -)\n"); 
+    #endif
+    return CONTINUE; 
+}
+
+"break" {
+    #ifdef DEBUG
+    printf("(BREAK, -)\n"); 
+    #endif
+    return BREAK; 
+}
+
+{id} { 
+    #ifdef DEBUG
+    printf("(ID, %s)\n", yytext); 
+    #endif
+    strcpy(yylval.type_id, yytext); 
+    return ID; 
+}
+
+";"	{
+    #ifdef DEBUG
+    printf("(SEMI, -)\n"); 
+    #endif
+    return SEMI; 
+}
+
+","	{ 
+    #ifdef DEBUG
+    printf("(COMMA, -)\n"); 
+    #endif
+    return COMMA; 
+}
+
+"=="|"!="|">="|"<="|">"|"<"	{
+    #ifdef DEBUG
+    printf("(RELOP, %s)\n", yytext); 
+    #endif
+    strcpy(yylval.type_id, yytext); 
+    return RELOP; 
+}
+
+"+="|"-="|"*="|"/="|"%="|"&="|"|="|"^="|"<<="|">>=" {
+    #ifdef DEBUG
+    printf("(COMP_ASSIGN, %s)\n", yytext); 
+    #endif
+    strcpy(yylval.type_id, yytext); 
+    return COMP_ASSIGN; 
+}
+
+"="	{ 
+    #ifdef DEBUG
+    printf("(ASSIGNOP, -)\n"); 
+    #endif
+    return ASSIGNOP; 
+}
+
+"+"	{ 
+    #ifdef DEBUG
+    printf("(PLUS, -)\n"); 
+    #endif
+    return PLUS; 
+}
+
+"-"	{
+    #ifdef DEBUG 
+    printf("(MINUS, -)\n"); 
+    #endif
+    return MINUS; 
+}
+
+"*"	{
+    #ifdef DEBUG 
+    printf("(STAR, -)\n"); 
+    #endif
+    return STAR; 
+}
+
+"/"	{ 
+    #ifdef DEBUG
+    printf("(DIV, -)\n"); 
+    #endif
+    return DIV; 
+}
+
+"%"	{ 
+    #ifdef DEBUG
+    printf("(MOD, -)\n");
+    #endif 
+    return MOD; 
+}
+
+"&" { 
+    #ifdef DEBUG
+    printf("(BITAND, -)\n"); 
+    #endif
+    return BITAND; 
+}
+
+"|" { 
+    #ifdef DEBUG
+    printf("(BITOR, -)\n"); 
+    #endif
+    return BITOR; 
+}
+
+"^" { 
+    #ifdef DEBUG
+    printf("(BITXOR, -)\n"); 
+    #endif
+    return BITXOR; 
+}
+
+"<<" { 
+    #ifdef DEBUG
+    printf("(BITSHL, -)\n"); 
+    #endif
+    return BITSHL; 
+}
+
+">>" { 
+    #ifdef DEBUG
+    printf("(BITSHR, -)\n"); 
+    #endif
+    return BITSHR; 
+}
+
+"++" { 
+    #ifdef DEBUG
+    printf("(DPLUS, -)\n"); 
+    #endif
+    return DPLUS; 
+}
+
+"--" { 
+    #ifdef DEBUG
+    printf("(DMINUS, -)\n"); 
+    #endif
+    return DMINUS; 
+}
+
+"&&" { 
+    #ifdef DEBUG
+    printf("(AND, -)\n"); 
+    #endif
+    return AND; 
+}
+
+"||" { 
+    #ifdef DEBUG
+    printf("(OR, -)\n"); 
+    #endif
+    return OR; 
+}
+
+"!"	{ 
+    #ifdef DEBUG
+    printf("(NOT, -)\n"); 
+    #endif
+    return NOT; 
+}
+
+"("	{ 
+    #ifdef DEBUG
+    printf("(LP, -)\n"); 
+    #endif
+    return LP; 
+}
+
+")"	{
+    #ifdef DEBUG 
+    printf("(RP, -)\n"); 
+    #endif
+    return RP; 
+}
+
+"{"	{ 
+    #ifdef DEBUG
+    printf("(LC, -)\n"); 
+    #endif
+    return LC; 
+}
+
+"}"	{ 
+    #ifdef DEBUG
+    printf("(RC, -)\n"); 
+    #endif
+    return RC; 
+}
+
+"[" { 
+    #ifdef DEBUG
+    printf("(LS, -)\n"); 
+    #endif
+    return LS; 
+}
+
+"]" { 
+    #ifdef DEBUG
+    printf("(RS, -)\n"); 
+    #endif
+    return RS; 
+}
+
 [ \r\n\t]   {}
 
 {invalid}   { printf("Lex Error: Invalid identifier \"%s\" at Line %d\n", yytext, yylineno); }

@@ -103,7 +103,7 @@ extern int yydebug;
     FUNC_CALL = 309,
     ARGS = 310,
     ARRAY_DEC = 311,
-    ARRAY_VAL = 312,
+    ARRAY_REF = 312,
     ARRAY_SUB_LIST = 313,
     ARRAY_INIT_LIST = 314,
     ARRAY_PARAM = 315,

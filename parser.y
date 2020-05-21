@@ -10,7 +10,7 @@
 extern int yylineno;
 extern char *yytext;
 extern FILE *yyin;
-int yylex();
+extern "C" int yylex();
 void yyerror(const char* fmt, ...);
 %}
 
@@ -38,7 +38,7 @@ void yyerror(const char* fmt, ...);
 %token IF ELSE WHILE RETURN CONTINUE BREAK
 /*以下为接在上述token后依次编码的枚举常量，作为AST结点类型标记*/
 %token EXT_DEF_LIST EXT_VAR_DEF FUNC_DEF FUNC_DEC EXT_DEC_LIST PARAM_LIST PARAM_DEC VAR_DEF VAR_DEC VAR_DEC_LIST VAR_DEF_LIST COMP_STM STM_LIST EXP_STMT IF_THEN IF_THEN_ELSE
-%token FUNC_CALL ARGS ARRAY_DEC ARRAY_VAL ARRAY_SUB_LIST ARRAY_INIT_LIST ARRAY_PARAM
+%token FUNC_CALL ARGS ARRAY_DEC ARRAY_REF ARRAY_SUB_LIST ARRAY_INIT_LIST ARRAY_PARAM
 
 %right ASSIGNOP COMP_ASSIGN
 %left OR
@@ -57,7 +57,11 @@ void yyerror(const char* fmt, ...);
 
 %%
 
-Program: ExtDefList { display($1, 0); }                           //显示语法树,语义分析
+Program: ExtDefList {
+    #ifdef DEBUG
+    display($1, 0);
+    #endif
+}                           
 ;
 
 ExtDefList: { $$ = NULL; }
@@ -163,7 +167,7 @@ Exp: Exp ASSIGNOP Exp { $$ = mknode(2, ASSIGNOP, yylineno, $1, $3); }//$$结点t
 | Exp DMINUS { $$ = mknode(1, DMINUS, yylineno, $1); strcpy($$->type_id, "RDMINUS"); }
 | ID LP Args RP { $$ = mknode(1, FUNC_CALL, yylineno, $3); strcpy($$->type_id, $1); }
 | ID LP RP { $$ = mknode(0, FUNC_CALL, yylineno); strcpy($$->type_id, $1); }
-| ID ArraySubList { $$ = mknode(1, ARRAY_VAL, yylineno, $2); strcpy($$->type_id, $1); }
+| ID ArraySubList { $$ = mknode(1, ARRAY_REF, yylineno, $2); strcpy($$->type_id, $1); }
 | ID { $$ = mknode(0, ID, yylineno); strcpy($$->type_id, $1); }
 | INT { $$ = mknode(0, INT, yylineno); $$->type_int = $1; }
 | FLOAT { $$ = mknode(0, FLOAT, yylineno); $$->type_float = $1; }
