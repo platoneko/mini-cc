@@ -94,23 +94,26 @@ extern int yydebug;
     VAR_DEF = 300,
     VAR_DEC = 301,
     VAR_DEC_LIST = 302,
-    VAR_DEF_LIST = 303,
-    COMP_STM = 304,
-    STM_LIST = 305,
-    EXP_STMT = 306,
-    IF_THEN = 307,
-    IF_THEN_ELSE = 308,
-    FUNC_CALL = 309,
-    ARGS = 310,
-    ARRAY_DEC = 311,
-    ARRAY_REF = 312,
-    ARRAY_SUB_LIST = 313,
-    ARRAY_INIT_LIST = 314,
-    ARRAY_PARAM = 315,
-    UMINUS = 316,
-    DPLUS = 317,
-    DMINUS = 318,
-    LOWER_THEN_ELSE = 319
+    COMP_STM = 303,
+    STM_LIST = 304,
+    EXP_STMT = 305,
+    IF_THEN = 306,
+    IF_THEN_ELSE = 307,
+    FUNC_CALL = 308,
+    ARGS = 309,
+    ARRAY_DEC = 310,
+    ARRAY_REF = 311,
+    ARRAY_SUB_LIST = 312,
+    ARRAY_INIT_LIST = 313,
+    ARRAY_PARAM = 314,
+    VAR = 315,
+    PARAM = 316,
+    FUNC = 317,
+    ARRAY = 318,
+    UMINUS = 319,
+    DPLUS = 320,
+    DMINUS = 321,
+    LOWER_THEN_ELSE = 322
   };
 #endif
 
@@ -126,7 +129,7 @@ union YYSTYPE
     char   type_id[32];
     struct ASTNode *ptr;
 
-#line 130 "parser.tab.h"
+#line 133 "parser.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

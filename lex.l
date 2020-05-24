@@ -129,7 +129,7 @@ invalid  [0-9]+[A-Za-z_][A-Za-z_0-9]*
     #ifdef DEBUG
     printf("(ID, %s)\n", yytext); 
     #endif
-    strcpy(yylval.type_id, yytext); 
+    strncpy(yylval.type_id, yytext, 31); 
     return ID; 
 }
 
@@ -319,5 +319,5 @@ invalid  [0-9]+[A-Za-z_][A-Za-z_0-9]*
 
 [ \r\n\t]   {}
 
-{invalid}   { printf("Lex Error: Invalid identifier \"%s\" at Line %d\n", yytext, yylineno); }
-.			{ printf("Lex Error: Mysterious character \"%s\" at Line %d\n", yytext, yylineno); }
+{invalid}   { printf("Lex Error: invalid identifier \"%s\" at line %d\n", yytext, yylineno); }
+.			{ printf("Lex Error: mysterious character \"%s\" at line %d\n", yytext, yylineno); }

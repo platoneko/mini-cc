@@ -1021,7 +1021,7 @@ YY_RULE_SETUP
     #ifdef DEBUG
     printf("(ID, %s)\n", yytext); 
     #endif
-    strcpy(yylval.type_id, yytext); 
+    strncpy(yylval.type_id, yytext, 31); 
     return ID; 
 }
 	YY_BREAK
@@ -1296,12 +1296,12 @@ YY_RULE_SETUP
 case 43:
 YY_RULE_SETUP
 #line 322 "lex.l"
-{ printf("Lex Error: Invalid identifier \"%s\" at Line %d\n", yytext, yylineno); }
+{ printf("Lex Error: invalid identifier \"%s\" at line %d\n", yytext, yylineno); }
 	YY_BREAK
 case 44:
 YY_RULE_SETUP
 #line 323 "lex.l"
-{ printf("Lex Error: Mysterious character \"%s\" at Line %d\n", yytext, yylineno); }
+{ printf("Lex Error: mysterious character \"%s\" at line %d\n", yytext, yylineno); }
 	YY_BREAK
 case 45:
 YY_RULE_SETUP

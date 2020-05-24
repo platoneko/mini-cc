@@ -1,4 +1,4 @@
-#include "ast.h"
+#include "def.h"
 
 struct ASTNode *mknode(int num, int kind, int pos, ...) {
     struct ASTNode *T = (struct ASTNode *)calloc(1, sizeof(struct ASTNode));
@@ -14,122 +14,110 @@ struct ASTNode *mknode(int num, int kind, int pos, ...) {
     return T;
 }
 
-void display(struct ASTNode *T,int indent)
-{
+void display(struct ASTNode *T,int indent) {
     if (T) {
 	    switch (T->kind) {
 	    case EXT_DEF_LIST:  
-            display(T->ptr[0], indent);    //EXT_VAR_DEF
-            display(T->ptr[1], indent);    //EXT_DEC_LIST
-            break;
-	    case EXT_VAR_DEF:
-            printf("%*cEXT_VAR_DEF：(%d)\n", indent, ' ', T->pos);
-            display(T->ptr[0], indent+3);        //TYPE
-            printf("%*cVAR_NAME：\n", indent+3, ' ');
-            display(T->ptr[1], indent+6);        //EXT_DEC_LIST
+            display(T->ptr[0], indent);         //EXT_VAR_DEF|FUNC_DEF
+            display(T->ptr[1], indent);         //EXT_DEF_LIST
             break;
 	    case TYPE:          
             printf("%*cTYPE：%s\n", indent, ' ', T->type_id);
             break;
+        case EXT_VAR_DEF:
+            printf("%*cEXT_VAR_DEF：(%d)\n", indent, ' ', T->pos);
+            display(T->ptr[0], indent+3);       //TYPE
+            printf("%*cVAR_NAME：\n", indent+3, ' ');
+            display(T->ptr[1], indent+6);       //EXT_DEC_LIST
+            break;
         case EXT_DEC_LIST:  
-            if (T->ptr[0]->kind == ID) {
-                printf("%*c%s\n", indent, ' ', T->ptr[0]->type_id);
-            } else  {
-                display(T->ptr[0], indent);  //VAR_DEC
+            display(T->ptr[0], indent);         //VAR_DEC|ARRAY_DEC
+            display(T->ptr[1], indent);         //EXT_DEC_LIST
+            break;
+        case VAR_DEC:
+            if (T->ptr[0]) {
+                printf("%*c%s ASSIGNOP\n", indent, ' ', T->type_id);
+                display(T->ptr[0], indent+3);   //EXP
+            } else {
+                printf("%*c%s\n", indent, ' ', T->type_id);
             }
-            display(T->ptr[1], indent);     //EXT_DEC_LIST
             break;
 	    case FUNC_DEF:
             printf("%*cFUNC_DEF：(%d)\n", indent, ' ', T->pos);
-            display(T->ptr[0], indent+3);      //TYPE
-            display(T->ptr[1], indent+3);      //FUNC_DEC
-            display(T->ptr[2], indent+3);      //COMP_STM
+            display(T->ptr[0], indent+3);       //TYPE
+            display(T->ptr[1], indent+3);       //FUNC_DEC
+            display(T->ptr[2], indent+3);       //COMP_STM
             break;
 	    case FUNC_DEC:      
             printf("%*cFUNC_NAME：%s\n", indent, ' ', T->type_id);
             if (T->ptr[0]) {
                 printf("%*cPARAM_LIST：\n", indent, ' ');
-                display(T->ptr[0], indent+3);  //PARAM_LIST
+                display(T->ptr[0], indent+3);   //PARAM_LIST
             } else {
                 printf("%*cNO_PARAM\n", indent+3, ' ');
             }
             break;
 	    case PARAM_LIST:    
-            display(T->ptr[0], indent);     //PARAM_DEC
-            display(T->ptr[1], indent);     //PARAM_LIST
+            display(T->ptr[0], indent);         //PARAM_DEC|ARRAY_PARAM
+            display(T->ptr[1], indent);         //PARAM_LIST
             break;
 	    case PARAM_DEC:          
             printf("%*cNAME:%s,TYPE:%s\n", indent, ' ', T->type_id, T->ptr[0]->type_id);
             break;
-        case ARRAY_PARAM:
-            printf("%*cARRAY_PARAM:\n", indent, ' ');          
-            printf("%*cNAME:%s,TYPE:%s\n", indent+3, ' ', T->type_id, T->ptr[0]->type_id);
-            printf("%*cARRAY_SUB_LIST:\n", indent+3, ' '); 
-            display(T->ptr[1], indent+6);
-            break;
-	    case EXP_STMT:      
-            printf("%*cEXP_STMT：(%d)\n", indent, ' ', T->pos);
-            display(T->ptr[0], indent+3);   //EXP
-            break;
-	    case RETURN:        
-            printf("%*cRETURN：(%d)\n", indent, ' ', T->pos);
-            display(T->ptr[0], indent+3);   //EXP
-            break;
-	    case COMP_STM:      
+        case COMP_STM:      
             printf("%*cCOMP_STM：(%d)\n", indent, ' ', T->pos);
-            printf("%*cDEF_LIST：\n", indent+3, ' ');
-            display(T->ptr[0], indent+6);      //DEF_LIST
-            printf("%*cSTM_LIST：\n", indent+3, ' ');
-            display(T->ptr[1], indent+6);      //STM_LIST
+            display(T->ptr[0], indent+3);       //STM_LIST
             break;
-	    case STM_LIST:      
+        case STM_LIST:      
             display(T->ptr[0], indent);         //EXP_STMT, RETURN...
             display(T->ptr[1], indent);         //STM_LIST
             break;
-	    case WHILE:         
-            printf("%*cWHILE：(%d)\n",indent, ' ', T->pos);
-            printf("%*cCONDITION：\n", indent+3, ' ');
-            display(T->ptr[0], indent+6);      //EXP
-            printf("%*cSTMT：(%d)\n", indent+3, ' ', T->pos);
-            display(T->ptr[1], indent+6);      //Statements
+        case VAR_DEF:       
+            printf("%*cVAR_DEF：(%d)\n", indent, ' ', T->pos);
+            display(T->ptr[0], indent+3);       //TYPE
+            printf("%*cVAR_NAME：\n", indent+3, ' ');
+            display(T->ptr[1], indent+6);       //VAR_DEC_LIST
+            break;
+        case VAR_DEC_LIST:
+            display(T->ptr[0], indent);         //VAR_DEC
+            display(T->ptr[1], indent);         //VAR_DEC_LIST
+            break;
+	    case EXP_STMT:      
+            printf("%*cEXP_STMT：(%d)\n", indent, ' ', T->pos);
+            display(T->ptr[0], indent+3);       //EXP
+            break;
+	    case RETURN:        
+            printf("%*cRETURN：(%d)\n", indent, ' ', T->pos);
+            display(T->ptr[0], indent+3);       //EXP
             break;
 	    case IF_THEN:       
             printf("%*cIF(IF_THEN)：(%d)\n", indent, ' ', T->pos);
             printf("%*cCONDITION：\n", indent+3, ' ');
-            display(T->ptr[0], indent+6);      //EXP
+            display(T->ptr[0], indent+6);       //EXP
             printf("%*cIF_STMT：(%d)\n",indent+3,' ',T->pos);
-            display(T->ptr[1], indent+6);      //Statements
+            display(T->ptr[1], indent+6);       //STMT
             break;
 	    case IF_THEN_ELSE:  
             printf("%*cIF(IF_THEN_ELSE)：(%d)\n", indent, ' ', T->pos);
             printf("%*cCONDITION：\n", indent+3, ' ');
-            display(T->ptr[0], indent+6);      //EXP
+            display(T->ptr[0], indent+6);       //EXP
             printf("%*cIF_STMT：(%d)\n", indent+3, ' ', T->pos);
-            display(T->ptr[1], indent+6);      //Statements
+            display(T->ptr[1], indent+6);       //STMT
             printf("%*cELSE_STMT：(%d)\n", indent+3, ' ', T->pos);
-            display(T->ptr[2], indent+6);      //Statements
+            display(T->ptr[2], indent+6);       //STMT
             break;
-        case VAR_DEF_LIST:      
-            display(T->ptr[0], indent);    //VAR_DEF
-            display(T->ptr[1], indent);    //DEF_LIST
+	    case WHILE:         
+            printf("%*cWHILE：(%d)\n",indent, ' ', T->pos);
+            printf("%*cCONDITION：\n", indent+3, ' ');
+            display(T->ptr[0], indent+6);       //EXP
+            printf("%*cSTMT：(%d)\n", indent+3, ' ', T->pos);
+            display(T->ptr[1], indent+6);       //STMT
             break;
-        case VAR_DEF:       
-            printf("%*cVAR_DEF：(%d)\n", indent, ' ', T->pos);
-            display(T->ptr[0], indent+3);   //TYPE
-            printf("%*cVAR_NAME：\n", indent+3, ' ');
-            display(T->ptr[1], indent+6);   //DEC_LIST
+        case CONTINUE:
+            printf("%*cCONTINUE(%d)\n", indent, ' ', T->pos);
             break;
-        case VAR_DEC_LIST:
-            if (T->ptr[0]->kind == ID) {
-                printf("%*c%s\n", indent, ' ', T->ptr[0]->type_id);
-            } else  {
-                display(T->ptr[0], indent);  //VAR_DEC
-            }
-            display(T->ptr[1], indent); //DEC_LIST
-            break;
-        case VAR_DEC:
-            printf("%*c%s ASSIGNOP\n", indent, ' ', T->type_id);
-            display(T->ptr[0], indent+3);   //EXP
+        case BREAK:
+            printf("%*cBREAK(%d)\n", indent, ' ', T->pos);
             break;
 	    case ID:	        
             printf("%*c%s:ID\n", indent, ' ', T->type_id);
@@ -139,9 +127,6 @@ void display(struct ASTNode *T,int indent)
             break;
 	    case FLOAT:	       
             printf("%*c%f:FLOAT\n", indent, ' ', T->type_float);
-            break;
-        case CHAR:	       
-            printf("%*c%d:CHAR\n", indent, ' ', T->type_char);
             break;
 	    case ASSIGNOP:
             printf("%*cASSIGNOP\n", indent, ' ');
@@ -244,12 +229,6 @@ void display(struct ASTNode *T,int indent)
             display(T->ptr[0], indent);     //EXP
             display(T->ptr[1], indent);     //ARGS
             break;
-        case CONTINUE:
-            printf("%*cCONTINUE(%d)\n", indent, ' ', T->pos);
-            break;
-        case BREAK:
-            printf("%*cBREAK(%d)\n", indent, ' ', T->pos);
-            break;
         case ARRAY_DEC:
             printf("%*cARRAY_DEC:%s\n", indent, ' ', T->type_id);
             printf("%*cARRAY_SUB_LIST:\n", indent+3, ' ');
@@ -273,6 +252,12 @@ void display(struct ASTNode *T,int indent)
         case ARRAY_INIT_LIST:
             printf("%*cARRAY_INIT_LIST:\n", indent, ' ');
             display(T->ptr[0], indent+3);
+            break;
+        case ARRAY_PARAM:
+            printf("%*cARRAY_PARAM:\n", indent, ' ');          
+            printf("%*cNAME:%s,TYPE:%s\n", indent+3, ' ', T->type_id, T->ptr[0]->type_id);
+            printf("%*cARRAY_SUB_LIST:\n", indent+3, ' '); 
+            display(T->ptr[1], indent+6);
             break;
         }
     }

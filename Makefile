@@ -1,4 +1,4 @@
-parser: lex.l parser.y
+mini-cc: lex.l parser.y
 	bison -d -v parser.y
 	flex lex.l 
-	g++ -o bin/$@ parser.tab.c utils.c lex.yy.c ast.c -lfl -D DEBUG
+	g++ -o bin/$@ parser.tab.c utils.c lex.yy.c ast.c analysis.cpp -lfl -D DEBUG

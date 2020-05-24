@@ -1,7 +1,7 @@
 %define parse.error verbose
 %locations
 %{
-#include "ast.h"
+#include "def.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -22,23 +22,24 @@ void yyerror(const char* fmt, ...);
     struct ASTNode *ptr;
 };
 
-//  %type 定义非终结符的语义值类型
-%type  <ptr> Program ExtDefList ExtDef Specifier ExtDecList FuncDec CompSt ParamList VarDec ParamDec Stmt StmList VarDefList VarDef VarDecList Exp Args
+//%type 定义非终结符的语义值类型
+%type  <ptr> Program ExtDefList ExtDef Specifier ExtDecList FuncDec CompSt ParamList VarDec ParamDec Stmt StmList VarDecList Exp Args
 %type  <ptr> ArrayDec ArraySubList ArrayInitList
 
-//% token 定义终结符的语义值类型
+//%token 定义终结符的语义值类型
 %token <type_int> INT                       /*指定INT的语义值是type_int，由词法分析得到的数值*/
 %token <type_id> ID RELOP TYPE COMP_ASSIGN  /*指定ID,RELOP 的语义值是type_id，由词法分析得到的标识符字符串*/
 %token <type_float> FLOAT                   /*指定ID的语义值是type_id，由词法分析得到的标识符字符串*/
 %token <type_char> CHAR
 
-%token LP RP LC RC LS RS SEMI COMMA     /*用bison对该文件编译时，带参数-d，生成的.tab.h中给这些单词进行编码，可在lex.l中包含parser.tab.h使用这些单词种类码*/
+%token LP RP LC RC LS RS SEMI COMMA         /*用bison对该文件编译时，带参数-d，生成的.tab.h中给这些单词进行编码，可在lex.l中包含parser.tab.h使用这些单词种类码*/
 %token PLUS MINUS STAR DIV MOD ASSIGNOP AND OR NOT
 %token BITAND BITOR BITXOR BITSHL BITSHR
 %token IF ELSE WHILE RETURN CONTINUE BREAK
 /*以下为接在上述token后依次编码的枚举常量，作为AST结点类型标记*/
-%token EXT_DEF_LIST EXT_VAR_DEF FUNC_DEF FUNC_DEC EXT_DEC_LIST PARAM_LIST PARAM_DEC VAR_DEF VAR_DEC VAR_DEC_LIST VAR_DEF_LIST COMP_STM STM_LIST EXP_STMT IF_THEN IF_THEN_ELSE
+%token EXT_DEF_LIST EXT_VAR_DEF FUNC_DEF FUNC_DEC EXT_DEC_LIST PARAM_LIST PARAM_DEC VAR_DEF VAR_DEC VAR_DEC_LIST COMP_STM STM_LIST EXP_STMT IF_THEN IF_THEN_ELSE
 %token FUNC_CALL ARGS ARRAY_DEC ARRAY_REF ARRAY_SUB_LIST ARRAY_INIT_LIST ARRAY_PARAM
+%token VAR PARAM FUNC ARRAY
 
 %right ASSIGNOP COMP_ASSIGN
 %left OR
@@ -58,6 +59,10 @@ void yyerror(const char* fmt, ...);
 %%
 
 Program: ExtDefList {
+    #ifdef DEBUG
+    display($1, 0);
+    #endif
+    analysis($1);
     #ifdef DEBUG
     display($1, 0);
     #endif
@@ -82,17 +87,8 @@ ExtDecList: VarDec { $$ = mknode(1, EXT_DEC_LIST, yylineno, $1); }       /*每�
 | ArrayDec COMMA ExtDecList { $$ = mknode(2, EXT_DEC_LIST, yylineno, $1, $3); }
 ;
 
-ArrayDec: ID ArraySubList { $$ = mknode(1, ARRAY_DEC, yylineno, $2); strcpy($$->type_id, $1); }
-| ID ArraySubList ASSIGNOP ArrayInitList { $$ = mknode(2, ARRAY_DEC, yylineno, $2, $4); strcpy($$->type_id, $1); }
-;
-
-ArraySubList: LS Exp RS { $$ = mknode(1, ARRAY_SUB_LIST, yylineno, $2); }
-| LS Exp RS ArraySubList { $$ = mknode(2, ARRAY_SUB_LIST, yylineno, $2, $4); }
-| LS RS { $$ = mknode(1, ARRAY_SUB_LIST, yylineno, NULL); }
-| LS RS ArraySubList { $$ = mknode(2, ARRAY_SUB_LIST, yylineno, NULL, $3); }
-;
-
-ArrayInitList: LC Args RC { $$ = mknode(1, ARRAY_INIT_LIST, yylineno, $2); }
+VarDec: ID { $$ = mknode(0, VAR_DEC, yylineno); strcpy($$->type_id, $1); }
+| ID ASSIGNOP Exp { $$ = mknode(1, VAR_DEC, yylineno, $3); strcpy($$->type_id, $1); }
 ;
 
 FuncDec: ID LP ParamList RP { $$ = mknode(1, FUNC_DEC, yylineno, $3); strcpy($$->type_id, $1); }  //函数名存放在$$->type_id
@@ -107,40 +103,30 @@ ParamDec: Specifier ID { $$ = mknode(1, PARAM_DEC, yylineno, $1); strcpy($$->typ
 | Specifier ID ArraySubList { $$ = mknode(2, ARRAY_PARAM, yylineno, $1, $3); strcpy($$->type_id, $2); }
 ;
 
-CompSt: LC VarDefList StmList RC { $$ = mknode(2, COMP_STM, yylineno, $2, $3); }
+CompSt: LC StmList RC { $$ = mknode(1, COMP_STM, yylineno, $2); }
 ;
 
 StmList: { $$=NULL; }
 | Stmt StmList { $$ = mknode(2, STM_LIST, yylineno, $1, $2); }
 ;
 
-Stmt: Exp SEMI { $$ = mknode(1, EXP_STMT, yylineno, $1); }
+Stmt: Specifier VarDecList SEMI { $$ = mknode(2, VAR_DEF, yylineno, $1, $2); }
+| Exp SEMI { $$ = mknode(1, EXP_STMT, yylineno, $1); }
 | CompSt { $$=$1; }      //复合语句结点直接作为语句结点，不再生成新的结点
 | RETURN Exp SEMI { $$ = mknode(1, RETURN, yylineno, $2); }
+| RETURN SEMI { $$ = mknode(0, RETURN, yylineno); }
 | IF LP Exp RP Stmt %prec LOWER_THEN_ELSE { $$ = mknode(2, IF_THEN, yylineno, $3, $5); }
 | IF LP Exp RP Stmt ELSE Stmt { $$ = mknode(3, IF_THEN_ELSE, yylineno, $3, $5, $7); }
 | WHILE LP Exp RP Stmt { $$ = mknode(2, WHILE, yylineno, $3, $5); }
 | SEMI { $$ = NULL; }
-| CONTINUE { $$ = mknode(0, CONTINUE, yylineno); }
-| BREAK { $$ = mknode(0, BREAK, yylineno); }
-;
-
-VarDefList: { $$=NULL; }
-| VarDef VarDefList { $$ = mknode(2, VAR_DEF_LIST, yylineno, $1, $2); }
-| error SEMI { $$ = NULL; }
-;
-
-VarDef: Specifier VarDecList SEMI { $$ = mknode(2, VAR_DEF, yylineno, $1, $2); }
+| CONTINUE SEMI { $$ = mknode(0, CONTINUE, yylineno); }
+| BREAK SEMI { $$ = mknode(0, BREAK, yylineno); }
 ;
 
 VarDecList: VarDec { $$ = mknode(1, VAR_DEC_LIST, yylineno, $1); }
 | VarDec COMMA VarDecList { $$ = mknode(2, VAR_DEC_LIST, yylineno, $1, $3); }
 | ArrayDec { $$ = mknode(1, VAR_DEC_LIST, yylineno, $1); }
 | ArrayDec COMMA ExtDecList { $$ = mknode(2, VAR_DEC_LIST, yylineno, $1, $3); }
-;
-
-VarDec: ID { $$ = mknode(0, ID, yylineno); strcpy($$->type_id, $1); }
-| ID ASSIGNOP Exp { $$ = mknode(1, VAR_DEC, yylineno, $3); strcpy($$->type_id, $1); }
 ;
 
 Exp: Exp ASSIGNOP Exp { $$ = mknode(2, ASSIGNOP, yylineno, $1, $3); }//$$结点type_id空置未用，正好存放运算符
@@ -171,11 +157,24 @@ Exp: Exp ASSIGNOP Exp { $$ = mknode(2, ASSIGNOP, yylineno, $1, $3); }//$$结点t
 | ID { $$ = mknode(0, ID, yylineno); strcpy($$->type_id, $1); }
 | INT { $$ = mknode(0, INT, yylineno); $$->type_int = $1; }
 | FLOAT { $$ = mknode(0, FLOAT, yylineno); $$->type_float = $1; }
-| CHAR { $$ = mknode(0, CHAR, yylineno); $$->type_char = $1; }
+| CHAR { $$ = mknode(0, INT, yylineno); $$->type_int = $1; }
 ;
 
 Args: Exp COMMA Args { $$ = mknode(2, ARGS, yylineno, $1, $3); }
 | Exp { $$ = mknode(1, ARGS, yylineno, $1); }
+;
+
+ArrayDec: ID ArraySubList { $$ = mknode(1, ARRAY_DEC, yylineno, $2); strcpy($$->type_id, $1); }
+| ID ArraySubList ASSIGNOP ArrayInitList { $$ = mknode(2, ARRAY_DEC, yylineno, $2, $4); strcpy($$->type_id, $1); }
+;
+
+ArraySubList: LS Exp RS { $$ = mknode(1, ARRAY_SUB_LIST, yylineno, $2); }
+| LS Exp RS ArraySubList { $$ = mknode(2, ARRAY_SUB_LIST, yylineno, $2, $4); }
+| LS RS { $$ = mknode(1, ARRAY_SUB_LIST, yylineno, NULL); }
+| LS RS ArraySubList { $$ = mknode(2, ARRAY_SUB_LIST, yylineno, NULL, $3); }
+;
+
+ArrayInitList: LC Args RC { $$ = mknode(1, ARRAY_INIT_LIST, yylineno, $2); }
 ;
        
 %%
@@ -191,7 +190,7 @@ int main(int argc, char *argv[]) {
 void yyerror(const char* fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
-    fprintf(stderr, "Grammar Error at Line %d: ", yylineno);
+    fprintf(stderr, "Syntax Error at line %d: ", yylineno);
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, ".\n");
 }
