@@ -110,10 +110,11 @@ extern int yydebug;
     PARAM = 316,
     FUNC = 317,
     ARRAY = 318,
-    UMINUS = 319,
-    DPLUS = 320,
-    DMINUS = 321,
-    LOWER_THEN_ELSE = 322
+    VOID = 319,
+    UMINUS = 320,
+    DPLUS = 321,
+    DMINUS = 322,
+    LOWER_THEN_ELSE = 323
   };
 #endif
 
@@ -129,7 +130,7 @@ union YYSTYPE
     char   type_id[32];
     struct ASTNode *ptr;
 
-#line 133 "parser.tab.h"
+#line 134 "parser.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

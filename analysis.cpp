@@ -15,7 +15,10 @@ struct TypeVal {
 
 static int curLev = 0;
 static int curType;
+static int funcType;
+static int isExtVar = 1;
 static int isFuncDef = 0;
+static int inLoop = 0;
 vector<Symbol *> symbolTab;
 
 static TypeVal getTypeVal(ASTNode *lT, ASTNode *rT, int kind, char *relop) {
@@ -189,7 +192,7 @@ static TypeVal getTypeVal(ASTNode *lT, ASTNode *rT, int kind, char *relop) {
 static void analysisArithOp(ASTNode *T) {
     if (T->ptr[0]->kind == T->ptr[0]->type && T->ptr[1]->kind == T->ptr[1]->type) {
         TypeVal typeVal = getTypeVal(T->ptr[0], T->ptr[1], T->kind, NULL);
-        T->kind = typeVal.type;
+        T->type = T->kind = typeVal.type;
         if (T->kind == FLOAT) 
             T->type_float = typeVal.type_float;
         else 
@@ -209,8 +212,10 @@ static int getType(char *text) {
         return INT;
     } else if (strcmp(text, "float") == 0) {
         return FLOAT;
-    } else {
+    } else if (strcmp(text, "char") == 0) {
         return CHAR;
+    } else {
+        return VOID;
     }
 }
 
@@ -223,6 +228,8 @@ static string displayType(int type) {
         return "float";
     case CHAR:
         return "char";
+    case VOID:
+        return "void";
     default:
         return "unknown type";
     }
@@ -290,16 +297,22 @@ void analysis(struct ASTNode *T) {
     if (T) {
         switch (T->kind) {
         case EXT_DEF_LIST:
-            analysis(T->ptr[0]);    //EXT_VAR_DEF|FUNC_DEF
-            analysis(T->ptr[1]);    //EXT_DEF_LIST
+            analysis(T->ptr[0]);        //EXT_VAR_DEF|FUNC_DEF
+            analysis(T->ptr[1]);        //EXT_DEF_LIST
             break;
         case EXT_VAR_DEF:
+            isExtVar = 1;
             curType = getType(T->ptr[0]->type_id);
-            analysis(T->ptr[1]);    //EXT_DEC_LIST
+            if (curType == VOID) {
+                fprintf(stderr, "Semantic Error: variable declared void at line %d\n", T->pos);
+            } else {
+                analysis(T->ptr[1]);    //EXT_DEC_LIST
+            }
+            isExtVar = 0;
             break;
         case EXT_DEC_LIST:
-            analysis(T->ptr[0]);    //VAR_DEC
-            analysis(T->ptr[1]);    //EXT_DEC_LIST
+            analysis(T->ptr[0]);        //VAR_DEC
+            analysis(T->ptr[1]);        //EXT_DEC_LIST
             break;
         case VAR_DEC:
             if (checkRedeclaration(T->type_id, T->pos) != -1) {
@@ -313,18 +326,23 @@ void analysis(struct ASTNode *T) {
             #ifdef DEBUG
             displayTable();
             #endif
+            analysis(T->ptr[0]);
+            if (isExtVar && (T->ptr[0]->type != T->ptr[0]->kind)) {
+                fprintf(stderr, "Semantic Error: initializer element is not constant at line %d\n", T->pos);
+            }
             break;
         case FUNC_DEF:
-            curType = getType(T->ptr[0]->type_id);
-            analysis(T->ptr[1]);    //FUNC_DEC
-            analysis(T->ptr[2]);    //COMP_STM
+            funcType = getType(T->ptr[0]->type_id);
+            analysis(T->ptr[1]);        //FUNC_DEC
+            isFuncDef = 1;
+            analysis(T->ptr[2]);        //COMP_STM
             break;
         case FUNC_DEC:
             if (checkRedeclaration(T->type_id, T->pos) != -1) {
                 symbol = new Symbol;
                 strcpy(symbol->name, T->type_id);
                 symbol->flag = 'F';
-                symbol->type = curType;
+                symbol->type = funcType;
                 symbol->lev = 0;
                 T0 = T->ptr[0];
                 while (T0) {
@@ -338,12 +356,11 @@ void analysis(struct ASTNode *T) {
             displayTable();
             #endif
             curLev++;
-            isFuncDef = 1;
-            analysis(T->ptr[0]);    //PARAM_LIST
+            analysis(T->ptr[0]);        //PARAM_LIST
             break;
         case PARAM_LIST:
-            analysis(T->ptr[0]);    //PARAM_DEC
-            analysis(T->ptr[1]);    //PARAM_LIST
+            analysis(T->ptr[0]);        //PARAM_DEC
+            analysis(T->ptr[1]);        //PARAM_LIST
             break;
         case PARAM_DEC:
             if (checkRedeclaration(T->type_id, T->pos) != -1) {
@@ -362,7 +379,7 @@ void analysis(struct ASTNode *T) {
         case COMP_STM:
             if (!isFuncDef) curLev++;
             isFuncDef = 0;
-            analysis(T->ptr[0]);    //STM_LIST
+            analysis(T->ptr[0]);        //STM_LIST
             while (symbolTab.back()->lev == curLev) {
                 delete symbolTab.back();
                 symbolTab.pop_back();
@@ -373,41 +390,56 @@ void analysis(struct ASTNode *T) {
             curLev--;
             break;
         case STM_LIST:
-            analysis(T->ptr[0]);    //EXP_STMT, RETURN...
-            analysis(T->ptr[1]);    //STM_LIST
+            analysis(T->ptr[0]);        //EXP_STMT, RETURN...
+            analysis(T->ptr[1]);        //STM_LIST
             break;
         case VAR_DEF:
             curType = getType(T->ptr[0]->type_id);
-            analysis(T->ptr[1]);    //VAR_DEC_LIST
+            if (curType == VOID) {
+                fprintf(stderr, "Semantic Error: variable declared void at line %d\n", T->pos);
+            } else {
+                analysis(T->ptr[1]);    //VAR_DEC_LIST
+            }
             break;
         case VAR_DEC_LIST:
-            analysis(T->ptr[0]);    //VAR_DEC
-            analysis(T->ptr[1]);    //VAR_DEC_LIST
+            analysis(T->ptr[0]);        //VAR_DEC
+            analysis(T->ptr[1]);        //VAR_DEC_LIST
             break;
         case EXP_STMT:
             analysis(T->ptr[0]);
             break;
         case RETURN:
-            analysis(T->ptr[0]);    //EXP_STMT
+            if (T->ptr[0] && funcType == VOID) {
+                fprintf(stderr, "Semantic Error: return with a value, in function returning void at line %d\n", T->pos);
+            } else if (!T->ptr[0] && funcType != VOID) {
+                fprintf(stderr, "Semantic Error: return with no value, in function returning non-void at line %d\n", T->pos);
+            }
+            analysis(T->ptr[0]);        //EXP_STMT
             break;
         case IF_THEN:
-            analysis(T->ptr[0]);    //EXP
-            analysis(T->ptr[1]);    //STMT
+            analysis(T->ptr[0]);        //EXP
+            analysis(T->ptr[1]);        //STMT
             break;
         case IF_THEN_ELSE:
-            analysis(T->ptr[0]);    //EXP
-            analysis(T->ptr[1]);    //STMT
-            analysis(T->ptr[1]);    //STMT
+            analysis(T->ptr[0]);        //EXP
+            analysis(T->ptr[1]);        //STMT
+            analysis(T->ptr[1]);        //STMT
             break;
         case WHILE:
-            analysis(T->ptr[0]);    //EXP
-            analysis(T->ptr[1]);    //STMT
+            analysis(T->ptr[0]);        //EXP
+            inLoop = 1;
+            analysis(T->ptr[1]);        //STMT
+            inLoop = 0;
             break;
         case CONTINUE:
-            //TODO
+            if (!inLoop) {
+                fprintf(stderr, "Semantic Error: continue statement not within a loop at line %d\n", T->pos);
+            }
             break;
         case BREAK:
-            //TODO
+            if (!inLoop) {
+                fprintf(stderr, "Semantic Error: break statement not within a loop at line %d\n", T->pos);
+            }
             break;
         case ID:
             T->type = checkUndeclaredVar(T->type_id, T->pos);
@@ -625,11 +657,11 @@ void analysis(struct ASTNode *T) {
                 T0 = T0->ptr[1];
             }
             T->type = checkUndeclaredFunc(T->type_id, T->pos, cnt);
-            analysis(T->ptr[0]);    //ARGS
+            analysis(T->ptr[0]);        //ARGS
             break;
         case ARGS:
-            analysis(T->ptr[0]);    //EXP
-            analysis(T->ptr[1]);    //ARGS
+            analysis(T->ptr[0]);        //EXP
+            analysis(T->ptr[1]);        //ARGS
             break;
         }
     }

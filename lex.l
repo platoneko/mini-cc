@@ -83,6 +83,14 @@ invalid  [0-9]+[A-Za-z_][A-Za-z_0-9]*
     return TYPE; 
 }
 
+"void" {
+    #ifdef DEBUG
+    printf("(TYPE, %s)\n", yytext);
+    #endif
+    strcpy(yylval.type_id, yytext); 
+    return TYPE; 
+}
+
 "return" {
     #ifdef DEBUG
     printf("(RETURN, -)\n");
