@@ -19,5 +19,5 @@ C89 like
 
 ```
 make
-bin/parser <YOUR MINI-C FILE>
+bin/mini-cc <YOUR MINI-C FILE>
 ```

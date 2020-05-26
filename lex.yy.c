@@ -1328,7 +1328,7 @@ case 45:
 /* rule 45 can match eol */
 YY_RULE_SETUP
 #line 334 "lex.l"
-{ printf("Lex Error: invalid character constant \"%s\" at line %d\n", yytext, yylineno); }
+{ printf("Lex Error: invalid character constant %s at line %d\n", yytext, yylineno); return CHAR; }
 	YY_BREAK
 case 46:
 YY_RULE_SETUP
