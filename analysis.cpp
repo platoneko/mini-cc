@@ -189,7 +189,7 @@ static TypeVal getTypeVal(ASTNode *lT, ASTNode *rT, int kind, char *relop) {
     return typeVal;
 }
 
-static void analysis0ArithOp(ASTNode *T) {
+static void analysisArithOp(ASTNode *T) {
     if (T->ptr[0]->kind == T->ptr[0]->type && T->ptr[1]->kind == T->ptr[1]->type) {
         TypeVal typeVal = getTypeVal(T->ptr[0], T->ptr[1], T->kind, NULL);
         T->type = T->kind = typeVal.type;
@@ -517,22 +517,22 @@ static void analysis0(ASTNode *T) {
         case PLUS:
             analysis0(T->ptr[0]);
             analysis0(T->ptr[1]);
-            analysis0ArithOp(T);
+            analysisArithOp(T);
             break;
         case MINUS:
             analysis0(T->ptr[0]);
             analysis0(T->ptr[1]);
-            analysis0ArithOp(T);
+            analysisArithOp(T);
             break;
         case STAR:
             analysis0(T->ptr[0]);
             analysis0(T->ptr[1]);
-            analysis0ArithOp(T);
+            analysisArithOp(T);
             break;
         case DIV:
             analysis0(T->ptr[0]);
             analysis0(T->ptr[1]);
-            analysis0ArithOp(T);
+            analysisArithOp(T);
             break;
         case MOD:
             analysis0(T->ptr[0]);
