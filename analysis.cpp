@@ -1,6 +1,7 @@
 #include "def.h"
 
 #include <vector>
+#include <map>
 #include <string>
 
 using namespace std;
@@ -20,6 +21,13 @@ static int isExtVar = 1;
 static int isFuncDef = 0;
 static int inLoop = 0;
 static vector<Symbol *> symbolTab;
+static vector<int> bTab;
+static map<string, int> funcTab;
+
+static void newAlias(char *text) {
+    static int cnt = 0;
+    sprintf(text, "V%d", cnt);
+}
 
 static TypeVal getTypeVal(ASTNode *lT, ASTNode *rT, int kind, char *relop) {
     TypeVal typeVal;
@@ -189,24 +197,6 @@ static TypeVal getTypeVal(ASTNode *lT, ASTNode *rT, int kind, char *relop) {
     return typeVal;
 }
 
-static void analysisArithOp(ASTNode *T) {
-    if (T->ptr[0]->kind == T->ptr[0]->type && T->ptr[1]->kind == T->ptr[1]->type) {
-        TypeVal typeVal = getTypeVal(T->ptr[0], T->ptr[1], T->kind, NULL);
-        T->type = T->kind = typeVal.type;
-        if (T->kind == FLOAT) 
-            T->type_float = typeVal.type_float;
-        else 
-            T->type_int = typeVal.type_int;
-        free(T->ptr[0]);
-        free(T->ptr[1]);
-    } else {
-        if (T->ptr[0]->type == FLOAT || T->ptr[1]->type == FLOAT)
-            T->type = FLOAT;
-        else
-            T->type = INT;
-    }
-}
-
 static int getType(char *text) {
     if (strcmp(text, "int") == 0) {
         return INT;
@@ -289,145 +279,337 @@ static int checkRedeclaration(const char *name, int pos) {
     return 0;
 }
 
-static void analysis0(ASTNode *T) {
+static void analysisExtVarDef(ASTNode *T) {
+    isExtVar = 1;
+    curType = getType(T->ptr[0]->type_id);
+    if (curType == VOID) {
+        fprintf(stderr, "Semantic Error: variable declared void at line %d\n", T->pos);
+    } else {
+        analysis(T->ptr[1]);    //EXT_DEC_LIST
+    }
+    isExtVar = 0;
+}
+
+static void analysisVarDec(ASTNode *T) {
+    Symbol *symbol;
+    if (checkRedeclaration(T->type_id, T->pos) != -1) {
+        symbol = new Symbol;
+        strcpy(symbol->name, T->type_id);
+        symbol->flag = 'V';
+        symbol->type = curType;
+        symbol->lev = curLev;
+        symbolTab.push_back(symbol);
+    }
+    #ifdef DEBUG
+    displayTable();
+    #endif
+    analysis(T->ptr[0]);
+    if (isExtVar && (T->ptr[0]->type != T->ptr[0]->kind)) {
+        fprintf(stderr, "Semantic Error: initializer element is not constant at line %d\n", T->pos);
+    }
+}
+
+static void analysisFuncDec(ASTNode *T) {
     Symbol *symbol;
     ASTNode *T0;
     int cnt = 0;
+    if (checkRedeclaration(T->type_id, T->pos) != -1) {
+        symbol = new Symbol;
+        strcpy(symbol->name, T->type_id);
+        symbol->flag = 'F';
+        symbol->type = funcType;
+        symbol->lev = 0;
+        T0 = T->ptr[0];
+        while (T0) {
+            cnt++;
+            T0 = T0->ptr[1];
+        }
+        symbol->param = cnt;
+        symbolTab.push_back(symbol);
+    }
+    #ifdef DEBUG
+    displayTable();
+    #endif
+    curLev++;
+    analysis(T->ptr[0]);        //PARAM_LIST
+}
+
+static void analysisParamDec(ASTNode *T) {
+    Symbol *symbol;
+    if (checkRedeclaration(T->type_id, T->pos) != -1) {
+        symbol = new Symbol;
+        curType = getType(T->ptr[0]->type_id);
+        strcpy(symbol->name, T->type_id);
+        symbol->flag = 'P';
+        symbol->type = curType;
+        symbol->lev = 1;
+        symbolTab.push_back(symbol);
+    }
+    #ifdef DEBUG
+    displayTable();
+    #endif
+}
+
+static void analysisCompStm(ASTNode *T) {
+    if (!isFuncDef) curLev++;
+    isFuncDef = 0;
+    analysis(T->ptr[0]);        //STM_LIST
+    while (symbolTab.back()->lev == curLev) {
+        delete symbolTab.back();
+        symbolTab.pop_back();
+    }
+    #ifdef DEBUG
+    displayTable();
+    #endif
+    curLev--;
+}
+
+static void analysisVarDef(ASTNode *T) {
+    curType = getType(T->ptr[0]->type_id);
+    if (curType == VOID) {
+        fprintf(stderr, "Semantic Error: variable declared void at line %d\n", T->pos);
+    } else {
+        analysis(T->ptr[1]);    //VAR_DEC_LIST
+    }
+}
+
+static void analysisReturn(ASTNode *T) {
+    if (T->ptr[0] && funcType == VOID) {
+        fprintf(stderr, "Semantic Error: return with a value, in function returning void at line %d\n", T->pos);
+    } else if (!T->ptr[0] && funcType != VOID) {
+        fprintf(stderr, "Semantic Error: return with no value, in function returning non-void at line %d\n", T->pos);
+    }
+    analysis(T->ptr[0]);        //EXP_STMT
+}
+
+static void analysisAssignop(ASTNode *T) {
+    analysis(T->ptr[0]);
+    analysis(T->ptr[1]);
+    if (T->ptr[0]->kind != ID) {
+        fprintf(stderr, "Semantic Error: lvalue required as left operand of assignment at line %d\n", T->pos);
+    }
+    T->type = T->ptr[0]->type;
+}
+
+static void analysisCompAssign(ASTNode *T) {
+    analysis(T->ptr[0]);
+    analysis(T->ptr[1]);
+    if (T->ptr[0]->kind != ID) {
+        fprintf(stderr, "Semantic Error: lvalue required as left operand of assignment at line %d\n", T->pos);
+    }
+    if (T->type_id[0]=='<' || T->type_id[0]=='>' || T->type_id[0]=='^' || T->type_id[0]=='&' || T->type_id[0]=='|') {
+        if (T->ptr[0]->type == FLOAT || T->ptr[1]->type == FLOAT) {
+            fprintf(stderr, "Semantic Error: invalid operands to binary %s at line %d (have \"%s\" and \"%s\")\n", 
+            T->type_id, T->pos, displayType(T->ptr[0]->type).c_str(), displayType(T->ptr[1]->type).c_str());
+        }
+    }
+    T->type = T->ptr[0]->type;
+}
+
+static void analysisAnd(ASTNode *T) {
+    analysis(T->ptr[0]);
+    analysis(T->ptr[1]);
+    if (T->ptr[0]->kind == T->ptr[0]->type && T->ptr[0]->type_int == 0) {
+        T->kind = INT;
+        T->type_int = 0;
+        free(T->ptr[0]);
+        free(T->ptr[1]);
+    } else if (T->ptr[0]->kind == T->ptr[0]->type && T->ptr[1]->kind == T->ptr[1]->type) {
+        T->kind = INT;
+        T->type_int = T->ptr[0]->type_int && T->ptr[1]->type_int;
+        free(T->ptr[0]);
+        free(T->ptr[1]);
+    }
+    T->type = INT;
+}
+
+static void analysisOr(ASTNode *T) {
+    analysis(T->ptr[0]);
+    analysis(T->ptr[1]);
+    if (T->ptr[0]->kind == T->ptr[0]->type && T->ptr[0]->type_int == 1) {
+        T->kind = INT;
+        T->type_int = 1;
+        free(T->ptr[0]);
+        free(T->ptr[1]);
+    } else if (T->ptr[0]->kind == T->ptr[0]->type && T->ptr[1]->kind == T->ptr[1]->type) {
+        T->kind = INT;
+        T->type_int = T->ptr[0]->type_int || T->ptr[1]->type_int;
+        free(T->ptr[0]);
+        free(T->ptr[1]);
+    }
+    T->type = INT;
+}
+
+static void analysisRelop(ASTNode *T) {
+    analysis(T->ptr[0]);
+    analysis(T->ptr[1]);
+    if (T->ptr[0]->kind == T->ptr[0]->type && T->ptr[1]->kind == T->ptr[1]->type) {
+        T->type_int = getTypeVal(T->ptr[0], T->ptr[1], RELOP, T->type_id).type_int;
+        T->kind = INT;
+        free(T->ptr[0]);
+        free(T->ptr[1]);
+    }
+    T->type = INT;
+}
+
+static void analysisArithOp(ASTNode *T) {
+    analysis(T->ptr[0]);
+    analysis(T->ptr[1]);
+    if (T->ptr[0]->kind == T->ptr[0]->type && T->ptr[1]->kind == T->ptr[1]->type) {
+        TypeVal typeVal = getTypeVal(T->ptr[0], T->ptr[1], T->kind, NULL);
+        T->type = T->kind = typeVal.type;
+        if (T->kind == FLOAT) 
+            T->type_float = typeVal.type_float;
+        else 
+            T->type_int = typeVal.type_int;
+        free(T->ptr[0]);
+        free(T->ptr[1]);
+    } else {
+        if (T->ptr[0]->type == FLOAT || T->ptr[1]->type == FLOAT)
+            T->type = FLOAT;
+        else
+            T->type = INT;
+    }
+}
+
+static void analysisBinaryOp(ASTNode *T) {
+    char op[3];
+    switch (T->kind) {
+    case MOD:
+        strcpy(op, "\%");
+        break;
+    case BITAND:
+        strcpy(op, "&");
+        break;
+    case BITOR:
+        strcpy(op, "|");
+        break;
+    case BITXOR:
+        strcpy(op, "^");
+        break;
+    case BITSHL:
+        strcpy(op, "<<");
+        break;
+    case BITSHR:
+        strcpy(op, ">>");
+        break;
+    }
+    analysis(T->ptr[0]);
+    analysis(T->ptr[1]);
+    if (T->ptr[0]->type == FLOAT || T->ptr[1]->type == FLOAT) {
+        fprintf(stderr, "Semantic Error: invalid operands to binary %s at line %d (have \"%s\" and \"%s\")\n", 
+                op, T->pos, displayType(T->ptr[0]->type).c_str(), displayType(T->ptr[1]->type).c_str());
+    } else {
+        if (T->ptr[0]->kind == INT && T->ptr[1]->kind == INT) {
+            T->type_int = T->ptr[0]->type_int % T->ptr[1]->type_int;
+            T->kind = INT;
+            free(T->ptr[0]);
+            free(T->ptr[1]);
+        }
+    }
+    T->type = INT;
+}
+
+static void analysisNot(ASTNode *T) {
+    analysis(T->ptr[0]);
+    if (T->ptr[0]->kind == T->ptr[0]->type) {
+        T->type_int = !T->ptr[0]->type_int;
+        T->kind = INT;
+    }
+    T->type = INT;
+}
+
+static void analysisUminus(ASTNode *T) {
+    analysis(T->ptr[0]);
+    if (T->ptr[0]->kind == INT) {
+        T->type_int = -T->ptr[0]->type_int;
+        T->kind = INT;
+    } else if (T->ptr[0]->kind == FLOAT) {
+        T->type_float = -T->ptr[0]->type_float;
+        T->kind = FLOAT;
+    }
+    T->type = T->ptr[0]->type;
+}
+
+static void analysisFuncCall(ASTNode *T) {
+    Symbol *symbol;
+    ASTNode *T0;
+    int cnt = 0;
+    T0 = T->ptr[0];
+    while (T0) {
+        cnt++;
+        T0 = T0->ptr[1];
+    }
+    T->type = checkUndeclaredFunc(T->type_id, T->pos, cnt);
+    analysis(T->ptr[0]);        //ARGS
+}
+
+static void analysis(ASTNode *T) {
     if (T) {
         switch (T->kind) {
         case EXT_DEF_LIST:
-            analysis0(T->ptr[0]);        //EXT_VAR_DEF|FUNC_DEF
-            analysis0(T->ptr[1]);        //EXT_DEF_LIST
+            analysis(T->ptr[0]);        //EXT_VAR_DEF|FUNC_DEF
+            analysis(T->ptr[1]);        //EXT_DEF_LIST
             break;
         case EXT_VAR_DEF:
-            isExtVar = 1;
-            curType = getType(T->ptr[0]->type_id);
-            if (curType == VOID) {
-                fprintf(stderr, "Semantic Error: variable declared void at line %d\n", T->pos);
-            } else {
-                analysis0(T->ptr[1]);    //EXT_DEC_LIST
-            }
-            isExtVar = 0;
+            analysisExtVarDef(T);
             break;
         case EXT_DEC_LIST:
-            analysis0(T->ptr[0]);        //VAR_DEC
-            analysis0(T->ptr[1]);        //EXT_DEC_LIST
+            analysis(T->ptr[0]);        //VAR_DEC
+            analysis(T->ptr[1]);        //EXT_DEC_LIST
             break;
         case VAR_DEC:
-            if (checkRedeclaration(T->type_id, T->pos) != -1) {
-                symbol = new Symbol;
-                strcpy(symbol->name, T->type_id);
-                symbol->flag = 'V';
-                symbol->type = curType;
-                symbol->lev = curLev;
-                symbolTab.push_back(symbol);
-            }
-            #ifdef DEBUG
-            displayTable();
-            #endif
-            analysis0(T->ptr[0]);
-            if (isExtVar && (T->ptr[0]->type != T->ptr[0]->kind)) {
-                fprintf(stderr, "Semantic Error: initializer element is not constant at line %d\n", T->pos);
-            }
+            analysisVarDec(T);
             break;
         case FUNC_DEF:
             funcType = getType(T->ptr[0]->type_id);
-            analysis0(T->ptr[1]);        //FUNC_DEC
+            analysis(T->ptr[1]);        //FUNC_DEC
             isFuncDef = 1;
-            analysis0(T->ptr[2]);        //COMP_STM
+            analysis(T->ptr[2]);        //COMP_STM
             break;
         case FUNC_DEC:
-            if (checkRedeclaration(T->type_id, T->pos) != -1) {
-                symbol = new Symbol;
-                strcpy(symbol->name, T->type_id);
-                symbol->flag = 'F';
-                symbol->type = funcType;
-                symbol->lev = 0;
-                T0 = T->ptr[0];
-                while (T0) {
-                    cnt++;
-                    T0 = T0->ptr[1];
-                }
-                symbol->param = cnt;
-                symbolTab.push_back(symbol);
-            }
-            #ifdef DEBUG
-            displayTable();
-            #endif
-            curLev++;
-            analysis0(T->ptr[0]);        //PARAM_LIST
+            analysisFuncDec(T);
             break;
         case PARAM_LIST:
-            analysis0(T->ptr[0]);        //PARAM_DEC
-            analysis0(T->ptr[1]);        //PARAM_LIST
+            analysis(T->ptr[0]);        //PARAM_DEC
+            analysis(T->ptr[1]);        //PARAM_LIST
             break;
         case PARAM_DEC:
-            if (checkRedeclaration(T->type_id, T->pos) != -1) {
-                symbol = new Symbol;
-                curType = getType(T->ptr[0]->type_id);
-                strcpy(symbol->name, T->type_id);
-                symbol->flag = 'P';
-                symbol->type = curType;
-                symbol->lev = 1;
-                symbolTab.push_back(symbol);
-            }
-            #ifdef DEBUG
-            displayTable();
-            #endif
+            analysisParamDec(T);
             break;
         case COMP_STM:
-            if (!isFuncDef) curLev++;
-            isFuncDef = 0;
-            analysis0(T->ptr[0]);        //STM_LIST
-            while (symbolTab.back()->lev == curLev) {
-                delete symbolTab.back();
-                symbolTab.pop_back();
-            }
-            #ifdef DEBUG
-            displayTable();
-            #endif
-            curLev--;
+            analysisCompStm(T);
             break;
         case STM_LIST:
-            analysis0(T->ptr[0]);        //EXP_STMT, RETURN...
-            analysis0(T->ptr[1]);        //STM_LIST
+            analysis(T->ptr[0]);        //EXP_STMT, RETURN...
+            analysis(T->ptr[1]);        //STM_LIST
             break;
         case VAR_DEF:
-            curType = getType(T->ptr[0]->type_id);
-            if (curType == VOID) {
-                fprintf(stderr, "Semantic Error: variable declared void at line %d\n", T->pos);
-            } else {
-                analysis0(T->ptr[1]);    //VAR_DEC_LIST
-            }
+            analysisVarDef(T);
             break;
         case VAR_DEC_LIST:
-            analysis0(T->ptr[0]);        //VAR_DEC
-            analysis0(T->ptr[1]);        //VAR_DEC_LIST
+            analysis(T->ptr[0]);        //VAR_DEC
+            analysis(T->ptr[1]);        //VAR_DEC_LIST
             break;
         case EXP_STMT:
-            analysis0(T->ptr[0]);
+            analysis(T->ptr[0]);
             break;
         case RETURN:
-            if (T->ptr[0] && funcType == VOID) {
-                fprintf(stderr, "Semantic Error: return with a value, in function returning void at line %d\n", T->pos);
-            } else if (!T->ptr[0] && funcType != VOID) {
-                fprintf(stderr, "Semantic Error: return with no value, in function returning non-void at line %d\n", T->pos);
-            }
-            analysis0(T->ptr[0]);        //EXP_STMT
+            analysisReturn(T);
             break;
         case IF_THEN:
-            analysis0(T->ptr[0]);        //EXP
-            analysis0(T->ptr[1]);        //STMT
+            analysis(T->ptr[0]);        //EXP
+            analysis(T->ptr[1]);        //STMT
             break;
         case IF_THEN_ELSE:
-            analysis0(T->ptr[0]);        //EXP
-            analysis0(T->ptr[1]);        //STMT
-            analysis0(T->ptr[1]);        //STMT
+            analysis(T->ptr[0]);        //EXP
+            analysis(T->ptr[1]);        //STMT
+            analysis(T->ptr[1]);        //STMT
             break;
         case WHILE:
-            analysis0(T->ptr[0]);        //EXP
+            analysis(T->ptr[0]);        //EXP
             inLoop = 1;
-            analysis0(T->ptr[1]);        //STMT
+            analysis(T->ptr[1]);        //STMT
             inLoop = 0;
             break;
         case CONTINUE:
@@ -450,204 +632,39 @@ static void analysis0(ASTNode *T) {
             T->type = FLOAT;
             break;
         case ASSIGNOP:
-            analysis0(T->ptr[0]);
-            analysis0(T->ptr[1]);
-            if (T->ptr[0]->kind != ID) {
-                fprintf(stderr, "Semantic Error: lvalue required as left operand of assignment at line %d\n", T->pos);
-            }
-            T->type = T->ptr[0]->type;
+            analysisAssignop(T);
             break;
         case COMP_ASSIGN:
-            analysis0(T->ptr[0]);
-            analysis0(T->ptr[1]);
-            if (T->ptr[0]->kind != ID) {
-                fprintf(stderr, "Semantic Error: lvalue required as left operand of assignment at line %d\n", T->pos);
-            }
-            if (T->type_id[0]=='<' || T->type_id[0]=='>' || T->type_id[0]=='^' || T->type_id[0]=='&' || T->type_id[0]=='|') {
-                if (T->ptr[0]->type == FLOAT || T->ptr[1]->type == FLOAT) {
-                    fprintf(stderr, "Semantic Error: invalid operands to binary %s at line %d (have \"%s\" and \"%s\")\n", 
-                    T->type_id, T->pos, displayType(T->ptr[0]->type).c_str(), displayType(T->ptr[1]->type).c_str());
-                }
-            }
-            T->type = T->ptr[0]->type;
+            analysisCompAssign(T);
             break;
         case AND:
-            analysis0(T->ptr[0]);
-            analysis0(T->ptr[1]);
-            if (T->ptr[0]->kind == T->ptr[0]->type && T->ptr[0]->type_int == 0) {
-                T->kind = INT;
-                T->type_int = 0;
-                free(T->ptr[0]);
-                free(T->ptr[1]);
-            } else if (T->ptr[0]->kind == T->ptr[0]->type && T->ptr[1]->kind == T->ptr[1]->type) {
-                T->kind = INT;
-                T->type_int = T->ptr[0]->type_int && T->ptr[1]->type_int;
-                free(T->ptr[0]);
-                free(T->ptr[1]);
-            }
-            T->type = INT;
+            analysisAnd(T);
             break;
         case OR:
-            analysis0(T->ptr[0]);
-            analysis0(T->ptr[1]);
-            if (T->ptr[0]->kind == T->ptr[0]->type && T->ptr[0]->type_int == 1) {
-                T->kind = INT;
-                T->type_int = 1;
-                free(T->ptr[0]);
-                free(T->ptr[1]);
-            } else if (T->ptr[0]->kind == T->ptr[0]->type && T->ptr[1]->kind == T->ptr[1]->type) {
-                T->kind = INT;
-                T->type_int = T->ptr[0]->type_int || T->ptr[1]->type_int;
-                free(T->ptr[0]);
-                free(T->ptr[1]);
-            }
-            T->type = INT;
+            analysisOr(T);
             break;
         case RELOP:
-            analysis0(T->ptr[0]);
-            analysis0(T->ptr[1]);
-            if (T->ptr[0]->kind == T->ptr[0]->type && T->ptr[1]->kind == T->ptr[1]->type) {
-                T->type_int = getTypeVal(T->ptr[0], T->ptr[1], RELOP, T->type_id).type_int;
-                T->kind = INT;
-                free(T->ptr[0]);
-                free(T->ptr[1]);
-            }
-            T->type = INT;
+            analysisRelop(T);
             break;
         case PLUS:
-            analysis0(T->ptr[0]);
-            analysis0(T->ptr[1]);
-            analysisArithOp(T);
-            break;
         case MINUS:
-            analysis0(T->ptr[0]);
-            analysis0(T->ptr[1]);
-            analysisArithOp(T);
-            break;
         case STAR:
-            analysis0(T->ptr[0]);
-            analysis0(T->ptr[1]);
-            analysisArithOp(T);
-            break;
         case DIV:
-            analysis0(T->ptr[0]);
-            analysis0(T->ptr[1]);
             analysisArithOp(T);
             break;
         case MOD:
-            analysis0(T->ptr[0]);
-            analysis0(T->ptr[1]);
-            if (T->ptr[0]->type == FLOAT || T->ptr[1]->type == FLOAT) {
-                fprintf(stderr, "Semantic Error: invalid operands to binary \% at line %d (have \"%s\" and \"%s\")\n", 
-                        T->pos, displayType(T->ptr[0]->type).c_str(), displayType(T->ptr[1]->type).c_str());
-            } else {
-                if (T->ptr[0]->kind == INT && T->ptr[1]->kind == INT) {
-                    T->type_int = T->ptr[0]->type_int % T->ptr[1]->type_int;
-                    T->kind = INT;
-                    free(T->ptr[0]);
-                    free(T->ptr[1]);
-                }
-            }
-            T->type = INT;
-            break;
         case BITAND:
-            analysis0(T->ptr[0]);
-            analysis0(T->ptr[1]);
-            if (T->ptr[0]->type == FLOAT || T->ptr[1]->type == FLOAT) {
-                fprintf(stderr, "Semantic Error: invalid operands to binary & at line %d (have \"%s\" and \"%s\")\n", 
-                        T->pos, displayType(T->ptr[0]->type).c_str(), displayType(T->ptr[1]->type).c_str());
-            } else {
-                if (T->ptr[0]->kind == INT && T->ptr[1]->kind == INT) {
-                    T->type_int = T->ptr[0]->type_int & T->ptr[1]->type_int;
-                    T->kind = INT;
-                    free(T->ptr[0]);
-                    free(T->ptr[1]);
-                }
-            }
-            T->type = INT;
-            break;
         case BITOR:
-            analysis0(T->ptr[0]);
-            analysis0(T->ptr[1]);
-            if (T->ptr[0]->type == FLOAT || T->ptr[1]->type == FLOAT) {
-                fprintf(stderr, "Semantic Error: invalid operands to binary | at line %d (have \"%s\" and \"%s\")\n", 
-                        T->pos, displayType(T->ptr[0]->type).c_str(), displayType(T->ptr[1]->type).c_str());
-            } else {
-                if (T->ptr[0]->kind == INT && T->ptr[1]->kind == INT) {
-                    T->type_int = T->ptr[0]->type_int | T->ptr[1]->type_int;
-                    T->kind = INT;
-                    free(T->ptr[0]);
-                    free(T->ptr[1]);
-                }
-            }
-            T->type = INT;
-            break;
         case BITXOR:
-            analysis0(T->ptr[0]);
-            analysis0(T->ptr[1]);
-            if (T->ptr[0]->type == FLOAT || T->ptr[1]->type == FLOAT) {
-                fprintf(stderr, "Semantic Error: invalid operands to binary ^ at line %d (have \"%s\" and \"%s\")\n", 
-                        T->pos, displayType(T->ptr[0]->type).c_str(), displayType(T->ptr[1]->type).c_str());
-            } else {
-                if (T->ptr[0]->kind == INT && T->ptr[1]->kind == INT) {
-                    T->type_int = T->ptr[0]->type_int ^ T->ptr[1]->type_int;
-                    T->kind = INT;
-                    free(T->ptr[0]);
-                    free(T->ptr[1]);
-                }
-            }
-            T->type = INT;
-            break;
         case BITSHL:
-            analysis0(T->ptr[0]);
-            analysis0(T->ptr[1]);
-            if (T->ptr[0]->type == FLOAT || T->ptr[1]->type == FLOAT) {
-                fprintf(stderr, "Semantic Error: invalid operands to binary << at line %d (have \"%s\" and \"%s\")\n", 
-                        T->pos, displayType(T->ptr[0]->type).c_str(), displayType(T->ptr[1]->type).c_str());
-            } else {
-                if (T->ptr[0]->kind == INT && T->ptr[1]->kind == INT) {
-                    T->type_int = T->ptr[0]->type_int << T->ptr[1]->type_int;
-                    T->kind = INT;
-                    free(T->ptr[0]);
-                    free(T->ptr[1]);
-                }
-            }
-            T->type = INT;
-            break;
         case BITSHR:
-            analysis0(T->ptr[0]);
-            analysis0(T->ptr[1]);
-            if (T->ptr[0]->type == FLOAT || T->ptr[1]->type == FLOAT) {
-                fprintf(stderr, "Semantic Error: invalid operands to binary >> at line %d (have \"%s\" and \"%s\")\n", 
-                        T->pos, displayType(T->ptr[0]->type).c_str(), displayType(T->ptr[1]->type).c_str());
-            } else {
-                if (T->ptr[0]->kind == INT && T->ptr[1]->kind == INT) {
-                    T->type_int = T->ptr[0]->type_int >> T->ptr[1]->type_int;
-                    T->kind = INT;
-                    free(T->ptr[0]);
-                    free(T->ptr[1]);
-                }
-            }
-            T->type = INT;
+            analysisBinaryOp(T);
             break;
         case NOT:
-            analysis0(T->ptr[0]);
-            if (T->ptr[0]->kind == T->ptr[0]->type) {
-                T->type_int = !T->ptr[0]->type_int;
-                T->kind = INT;
-            }
-            T->type = INT;
+            analysisNot(T);
             break;
         case UMINUS:
-            analysis0(T->ptr[0]);
-            if (T->ptr[0]->kind == INT) {
-                T->type_int = -T->ptr[0]->type_int;
-                T->kind = INT;
-            } else if (T->ptr[0]->kind == FLOAT) {
-                T->type_float = -T->ptr[0]->type_float;
-                T->kind = FLOAT;
-            }
-            T->type = T->ptr[0]->type;
+            analysisUminus(T);
             break;
         case DPLUS:
             if (T->ptr[0]->kind != ID) {
@@ -660,26 +677,12 @@ static void analysis0(ASTNode *T) {
             }
             break;
         case FUNC_CALL:
-            T0 = T->ptr[0];
-            while (T0) {
-                cnt++;
-                T0 = T0->ptr[1];
-            }
-            T->type = checkUndeclaredFunc(T->type_id, T->pos, cnt);
-            analysis0(T->ptr[0]);        //ARGS
+            analysisFuncCall(T);
             break;
         case ARGS:
-            analysis0(T->ptr[0]);        //EXP
-            analysis0(T->ptr[1]);        //ARGS
+            analysis(T->ptr[0]);        //EXP
+            analysis(T->ptr[1]);        //ARGS
             break;
         }
     }
-}
-
-void analysis(ASTNode *T) {
-    analysis0(T);
-    for (auto it=symbolTab.begin(); it!=symbolTab.end(); it++) {
-        delete *it;
-    }
-    symbolTab.clear();
 }

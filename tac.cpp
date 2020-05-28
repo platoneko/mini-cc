@@ -203,7 +203,7 @@ static void genId(ASTNode *T) {
 static void genAssignop(ASTNode *T) {
     Opn opn1, opn2, result;
     result.kind = VAR;
-    result.place = T->ptr[0]->place;
+    result.place = T->ptr[0]->place;    //T->place == T->ptr[0]->place
     if (T->ptr[1]->kind == T->ptr[1]->type) {
         opn1.kind = T->ptr[1]->type;
         if (T->ptr[1]->type == FLOAT) {
@@ -219,7 +219,7 @@ static void genAssignop(ASTNode *T) {
     T->code = merge(2, T->ptr[1]->code, gen(ASSIGNOP, opn1, opn2, result));
     if (T->Etrue[0]) {
         opn1.kind = VAR;
-        opn1.place = T->ptr[0]->place;
+        opn1.place = T->place;
         opn2.kind = INT;        //0
         result.kind = LABEL;
         strcpy(result.label, T->Etrue);
@@ -230,7 +230,7 @@ static void genAssignop(ASTNode *T) {
 static void genCompAssign(ASTNode *T) {
     Opn opn1, opn2, result;
     result.kind = VAR;
-    result.place = T->ptr[0]->place;
+    result.place = T->ptr[0]->place;    //T->place == T->ptr[0]->place
     if (T->ptr[1]->kind == T->ptr[1]->type) {
         opn2.kind = T->ptr[1]->type;
         if (T->ptr[1]->type == FLOAT) {
@@ -277,7 +277,7 @@ static void genCompAssign(ASTNode *T) {
     }
     if (T->Etrue[0]) {
         opn1.kind = VAR;
-        opn1.place = T->ptr[0]->place;
+        opn1.place = T->place;
         opn2.kind = INT;        //0
         opn2.const_int = 0;
         result.kind = LABEL;
@@ -582,6 +582,52 @@ static void genArithOp(ASTNode *T) {
     }
 }
 
+static void genDPLusMinus(ASTNode *T) {
+    Opn opn1, opn2, result;
+    TACNode *code1, *code2;
+    opn2.kind = INT;
+    opn2.const_int = 1;
+    result.kind = VAR;
+    result.place = T->ptr[0]->place;
+    if (T->kind == DPLUS) {
+        code2 = gen(PLUS, result, opn2, result);        //T1 := T1 + 1
+        if (T->type_id[0] == 'R') {                     //T1++
+            result.kind = VAR;
+            result.place = T->place;
+            opn1.kind = VAR;
+            opn1.place = T->ptr[0]->place;
+            code1 = gen(ASSIGNOP, opn1, opn2, result);
+            T->code = merge(2, code1, code2);
+        } else {                                        //++T1
+            //T->place == T->ptr[0]->place
+            T->code = code2;
+        }
+    } else {
+        code2 = gen(MINUS, result, opn2, result);       //T1 := T1 - 1
+        if (T->type_id[0] == 'R') {                     //T1--
+            result.kind = VAR;
+            result.place = T->place;
+            opn1.kind = VAR;
+            opn1.place = T->ptr[0]->place;
+            code1 = gen(ASSIGNOP, opn1, opn2, result);
+            T->code = merge(2, code1, code2);
+        } else {                                        //--T1
+            //T->place == T->ptr[0]->place
+            T->code = code2;
+        }    
+    }
+    if (T->Etrue[0]) {
+        opn1.kind = VAR;
+        opn1.place = T->place;
+        opn2.kind = INT;        //0
+        opn2.const_int = 0;
+        result.kind = LABEL;
+        strcpy(result.label, T->Etrue);
+        T->code = merge(3, T->code, gen(NEQ, opn1, opn2, result), genGoto(T->Efalse));
+    }
+}
+
+
 void genTAC(ASTNode *T) {
     if (T) {
         switch (T->kind) {
@@ -724,7 +770,12 @@ void genTAC(ASTNode *T) {
         case UMINUS:
             genUminus(T);
             break;
-        
+        case DPLUS:
+        case DMINUS:
+            genDPLusMinus(T);
+            break;
+        case FUNC_CALL:
+            break;
         }
     }
 }

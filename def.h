@@ -46,6 +46,7 @@ struct Symbol {
 	int param;
 	int type;
 	int offset;
+	int link;
 	char flag;
 };
 
