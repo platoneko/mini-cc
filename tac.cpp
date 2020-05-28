@@ -1,5 +1,23 @@
 #include "def.h"
 
+#include <vector>
+#include <string>
+#include <map>
+
+using namespace std;
+
+extern vector<Symbol *> symbolTab;
+extern map<string, int> funcTab;
+
+static void displayTAC(TACNode *head) {
+    TACNode *node = head;
+    do {
+        switch(node->op) {
+        }
+        node = node->next;
+    } while (node != head);
+}
+
 static TACNode *merge(int num, ...) {
     va_list pArgs;
     va_start(pArgs, num);
@@ -22,14 +40,25 @@ static TACNode *merge(int num, ...) {
     return head;
 }
 
-static void newLabel(char *text) {
+static void newLabel(char *label) {
     static int cnt = 0;
-    sprintf(text, "L%d", cnt);
+    sprintf(label, "L%d", cnt);
     cnt++;
 }
 
+static int newTemp(int type) {
+    static int cnt = 0;
+    Symbol *symbol = new Symbol();
+    sprintf(symbol->alias, "T%d", cnt);
+    symbol->type = type;
+    symbol->flag = 'T';
+    symbolTab.push_back(symbol);
+    cnt++;
+    return symbolTab.size() - 1;
+}
+
 static TACNode *gen(int op, Opn opn1, Opn opn2, Opn result) {
-    TACNode *node = new TACNode;
+    TACNode *node = new TACNode();
     node->op = op;
     node->opn1 = opn1;
     node->opn2 = opn2;
@@ -39,7 +68,7 @@ static TACNode *gen(int op, Opn opn1, Opn opn2, Opn result) {
 }
 
 static TACNode *genLabel(char *label) {
-    TACNode *node = new TACNode;
+    TACNode *node = new TACNode();
     node->op = LABEL;
     node->result.kind = LABEL;
     strcpy(node->result.label, label);
@@ -47,7 +76,7 @@ static TACNode *genLabel(char *label) {
 }
 
 static TACNode *genGoto(char *label) {
-    TACNode *node = new TACNode;
+    TACNode *node = new TACNode();
     node->op = GOTO;
     node->result.kind = LABEL;
     strcpy(node->result.label, label);
@@ -202,8 +231,9 @@ static void genId(ASTNode *T) {
 
 static void genAssignop(ASTNode *T) {
     Opn opn1, opn2, result;
+    T->place = T->ptr[0]->place;
     result.kind = VAR;
-    result.place = T->ptr[0]->place;    //T->place == T->ptr[0]->place
+    result.place = T->place;    //T->place == T->ptr[0]->place
     if (T->ptr[1]->kind == T->ptr[1]->type) {
         opn1.kind = T->ptr[1]->type;
         if (T->ptr[1]->type == FLOAT) {
@@ -229,6 +259,7 @@ static void genAssignop(ASTNode *T) {
 
 static void genCompAssign(ASTNode *T) {
     Opn opn1, opn2, result;
+    T->place = T->ptr[0]->place;
     result.kind = VAR;
     result.place = T->ptr[0]->place;    //T->place == T->ptr[0]->place
     if (T->ptr[1]->kind == T->ptr[1]->type) {
@@ -297,9 +328,11 @@ static void genAnd(ASTNode *T) {
         T->code = merge(3, T->ptr[0]->code, genLabel(T->ptr[0]->Etrue), T->ptr[1]->code);
     } else {
         Opn opn1, opn2, result;
+        T->place = newTemp(T->type);
         if (T->ptr[0]->kind == T->ptr[0]->type) {   //1 && EXP
             char label1[8];
             TACNode *code1, *code2, *code3;
+            genTAC(T->ptr[1]);      //EXP
             newLabel(label1);
             opn1.kind = INT;
             opn1.const_int = 0;
@@ -314,11 +347,11 @@ static void genAnd(ASTNode *T) {
             result.kind = LABEL;
             strcpy(result.label, label1);
             code2 = gen(EQ, opn1, opn2, result);        //if T2 == 0 goto label1
-            genTAC(T->ptr[1]);      //EXP
             T->code = merge(5, code1, T->ptr[1]->code, code2, code3, genLabel(label1));
         } else {                                    //EXP && EXP
             char label1[8];
             TACNode *code1, *code2, *code3, *code4;
+            genTAC(T->ptr[0]);  //EXP
             newLabel(label1);
             opn1.kind = INT;
             opn1.const_int = 0;
@@ -334,17 +367,15 @@ static void genAnd(ASTNode *T) {
             strcpy(result.label, label1);
             code2 = gen(EQ, opn1, opn2, result);        //if T1 == 0 goto label1
             if (T->ptr[1]->kind == T->ptr[1]->type) {
-                genTAC(T->ptr[0]);  //EXP
                 if (T->ptr[1]->type_int) {
                     T->code = merge(5, code1, T->ptr[0]->code, code2, code4, genLabel(label1));
                 } else {
                     T->code = merge(2, code1, T->ptr[0]->code);
                 }
             } else {
+                genTAC(T->ptr[1]);
                 opn1.place = T->ptr[1]->place;
                 code3 = gen(EQ, opn1, opn2, result);    //if T2 == 0 goto label1
-                genTAC(T->ptr[0]);
-                genTAC(T->ptr[1]);
                 T->code = merge(7, code1, T->ptr[0]->code, code2, T->ptr[1]->code, code3, code4, genLabel(label1));
             }
         }
@@ -362,9 +393,11 @@ static void genOr(ASTNode *T) {
                 T->code = merge(3, T->ptr[0]->code, genLabel(T->ptr[0]->Efalse), T->ptr[1]->code);
     } else {
         Opn opn1, opn2, result;
+        T->place = newTemp(T->type);
         if (T->ptr[0]->kind == T->ptr[0]->type) {   //1 && EXP
             char label1[8];
             TACNode *code1, *code2, *code3;
+            genTAC(T->ptr[1]);      //EXP
             newLabel(label1);
             opn1.kind = INT;
             opn1.const_int = 0;
@@ -379,11 +412,11 @@ static void genOr(ASTNode *T) {
             result.kind = LABEL;
             strcpy(result.label, label1);
             code2 = gen(EQ, opn1, opn2, result);        //if T2 == 0 goto label1
-            genTAC(T->ptr[1]);      //EXP
             T->code = merge(5, code1, T->ptr[1]->code, code2, code3, genLabel(label1));
         } else {                                    //EXP && EXP
             char label1[8];
             TACNode *code1, *code2, *code3, *code4;
+            genTAC(T->ptr[0]);  //EXP
             newLabel(label1);
             opn1.kind = INT;
             opn1.const_int = 1;
@@ -399,17 +432,15 @@ static void genOr(ASTNode *T) {
             strcpy(result.label, label1);
             code2 = gen(NEQ, opn1, opn2, result);       //if T1 != 0 goto label1
             if (T->ptr[1]->kind == T->ptr[1]->type) {
-                genTAC(T->ptr[0]);  //EXP
                 if (T->ptr[1]->type_int) {
                     T->code = merge(2, code1, T->ptr[0]->code);
                 } else {
                     T->code = merge(5, code1, T->ptr[0]->code, code2, code4, genLabel(label1));
                 }
             } else {
+                genTAC(T->ptr[1]);
                 opn1.place = T->ptr[1]->place;
                 code3 = gen(NEQ, opn1, opn2, result);   //if T2 != 0 goto label1
-                genTAC(T->ptr[0]);
-                genTAC(T->ptr[1]);
                 T->code = merge(7, code1, T->ptr[0]->code, code2, T->ptr[1]->code, code3, code4, genLabel(label1));
             }
         }
@@ -418,14 +449,16 @@ static void genOr(ASTNode *T) {
 
 static void genNot(ASTNode *T) {
     if (T->Etrue[0]) {
-                strcpy(T->ptr[0]->Etrue, T->Efalse);
-                strcpy(T->ptr[0]->Efalse, T->Etrue);
-                genTAC(T->ptr[0]);
-                T->code = T->ptr[0]->code;
+        strcpy(T->ptr[0]->Etrue, T->Efalse);
+        strcpy(T->ptr[0]->Efalse, T->Etrue);
+        genTAC(T->ptr[0]);
+        T->code = T->ptr[0]->code;
     } else {
         Opn opn1, opn2, result;
         char label1[8];
         TACNode *code1, *code2, *code3;
+        T->place = newTemp(T->type);
+        genTAC(T->ptr[0]);
         newLabel(label1);
         opn1.kind = INT;
         opn1.const_int = 1;
@@ -440,18 +473,18 @@ static void genNot(ASTNode *T) {
         result.kind = LABEL;
         strcpy(result.label, label1);
         code2 = gen(EQ, opn1, opn2, result);       //if T1 == 0 goto label1
-        genTAC(T->ptr[0]);
         T->code = merge(5, T->ptr[0]->code, code1, code2, code3, genLabel(label1));
     }
 }
 
 static void genUminus(ASTNode *T) {
     Opn opn1, opn2, result;
+    T->place = newTemp(T->type);
+    genTAC(T->ptr[0]);
     opn1.kind = VAR;
     opn1.place = T->ptr[0]->place;
     result.kind = VAR;
     result.place = T->place;
-    genTAC(T->ptr[0]);
     T->code = merge(2, T->ptr[0]->code, gen(UMINUS, opn1, opn2, result));
     if (T->Etrue[0]) {
         opn1.kind = VAR;
@@ -466,6 +499,8 @@ static void genUminus(ASTNode *T) {
 static void genRelop(ASTNode *T) {
     int kind;
     Opn opn1, opn2, result;
+    genTAC(T->ptr[0]);
+    genTAC(T->ptr[1]);
     if (T->ptr[0]->kind == T->ptr[0]->type) {
         if (T->ptr[0]->kind == FLOAT) {
             opn1.kind = FLOAT;
@@ -514,8 +549,6 @@ static void genRelop(ASTNode *T) {
         }
         break;
     }
-    genTAC(T->ptr[0]);
-    genTAC(T->ptr[1]);
     if (T->Etrue[0]) {
         result.kind = LABEL;
         strcpy(result.label, T->Etrue);
@@ -523,6 +556,7 @@ static void genRelop(ASTNode *T) {
     } else {
         char label1[8];
         TACNode *code1, *code2, *code3;
+        T->place = newTemp(T->type);
         newLabel(label1);
         result.kind = LABEL;
         strcpy(result.label, label1);
@@ -540,6 +574,9 @@ static void genRelop(ASTNode *T) {
 
 static void genArithOp(ASTNode *T) {
     Opn opn1, opn2, result;
+    T->place = newTemp(T->type);
+    genTAC(T->ptr[0]);
+    genTAC(T->ptr[1]);
     if (T->ptr[0]->kind == T->ptr[0]->type) {
         if (T->ptr[0]->kind == FLOAT) {
             opn1.kind = FLOAT;
@@ -568,8 +605,6 @@ static void genArithOp(ASTNode *T) {
     }
     result.kind = VAR;
     result.place = T->place;
-    genTAC(T->ptr[0]);
-    genTAC(T->ptr[1]);
     T->code = merge(3, T->ptr[0]->code, T->ptr[1]->code, gen(T->kind, opn1, opn2, result));
     if (T->Etrue[0]) {
         opn1.kind = VAR;
@@ -592,6 +627,7 @@ static void genDPLusMinus(ASTNode *T) {
     if (T->kind == DPLUS) {
         code2 = gen(PLUS, result, opn2, result);        //T1 := T1 + 1
         if (T->type_id[0] == 'R') {                     //T1++
+            T->place = newTemp(T->type);
             result.kind = VAR;
             result.place = T->place;
             opn1.kind = VAR;
@@ -599,12 +635,13 @@ static void genDPLusMinus(ASTNode *T) {
             code1 = gen(ASSIGNOP, opn1, opn2, result);
             T->code = merge(2, code1, code2);
         } else {                                        //++T1
-            //T->place == T->ptr[0]->place
+            T->place = T->ptr[0]->place;
             T->code = code2;
         }
     } else {
         code2 = gen(MINUS, result, opn2, result);       //T1 := T1 - 1
         if (T->type_id[0] == 'R') {                     //T1--
+            T->place = newTemp(T->type);
             result.kind = VAR;
             result.place = T->place;
             opn1.kind = VAR;
@@ -612,7 +649,7 @@ static void genDPLusMinus(ASTNode *T) {
             code1 = gen(ASSIGNOP, opn1, opn2, result);
             T->code = merge(2, code1, code2);
         } else {                                        //--T1
-            //T->place == T->ptr[0]->place
+            T->place = T->ptr[0]->place;
             T->code = code2;
         }    
     }
@@ -627,6 +664,47 @@ static void genDPLusMinus(ASTNode *T) {
     }
 }
 
+static void genFuncCall(ASTNode *T) {
+    Opn opn1, opn2, result;
+    genTAC(T->ptr[0]);          //ARGS
+    opn1.kind = FUNC;
+    opn1.place = funcTab[T->type_id];
+    if (T->type != VOID) {
+        T->place = newTemp(T->type);
+        result.kind = VAR;
+        result.place = T->place;
+        T->code = merge(2, T->ptr[0]->code, gen(FUNC_CALL, opn1, opn2, result));
+    } else {
+        T->code = merge(2, T->ptr[0]->code, gen(FUNC_CALL, opn1, opn2, result));
+    }
+    if (T->Etrue[0]) {
+        opn1.kind = VAR;
+        opn1.place = T->place;
+        opn2.kind = INT;        //0
+        opn2.const_int = 0;
+        result.kind = LABEL;
+        strcpy(result.label, T->Etrue);
+        T->code = merge(3, T->code, gen(NEQ, opn1, opn2, result), genGoto(T->Efalse));
+    }
+}
+
+static void genArgs(ASTNode *T) {
+    Opn opn1, opn2, result;
+    genTAC(T->ptr[0]);          //EXP
+    genTAC(T->ptr[1]);          //ARGS
+    if (T->ptr[0]->kind == T->ptr[0]->type) {
+        result.kind = T->ptr[0]->type;
+        if (T->ptr[0]->type == FLOAT) {
+            result.const_float = T->ptr[0]->type_float;
+        } else {
+            result.const_int = T->ptr[0]->type_int;
+        }
+    } else {
+        result.kind = VAR;
+        result.place = T->ptr[0]->place;
+    }
+    T->code = merge(3, T->ptr[0]->code, gen(ARG, opn1, opn2, result), T->ptr[1]->code);
+}
 
 void genTAC(ASTNode *T) {
     if (T) {
@@ -775,6 +853,9 @@ void genTAC(ASTNode *T) {
             genDPLusMinus(T);
             break;
         case FUNC_CALL:
+            genFuncCall(T);
+            break;
+        case ARGS:
             break;
         }
     }

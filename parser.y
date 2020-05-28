@@ -12,6 +12,8 @@ extern char *yytext;
 extern FILE *yyin;
 extern "C" int yylex();
 void yyerror(const char* fmt, ...);
+
+extern int hasError;
 %}
 
 %union {
@@ -39,7 +41,7 @@ void yyerror(const char* fmt, ...);
 /*以下为接在上述token后依次编码的枚举常量，作为AST结点类型标记*/
 %token EXT_DEF_LIST EXT_VAR_DEF FUNC_DEF FUNC_DEC EXT_DEC_LIST PARAM_LIST PARAM_DEC VAR_DEF VAR_DEC VAR_DEC_LIST COMP_STM STM_LIST EXP_STMT IF_THEN IF_THEN_ELSE
 %token FUNC_CALL ARGS ARRAY_DEC ARRAY_REF ARRAY_SUB_LIST ARRAY_INIT_LIST ARRAY_PARAM
-%token VAR PARAM FUNC ARRAY VOID 
+%token VAR PARAM FUNC ARG VOID ARRAY 
 %token LABEL GOTO
 %token EQ NEQ LT LE GT GE
 
@@ -68,6 +70,10 @@ Program: ExtDefList {
     #ifdef DEBUG
     display($1, 0);
     #endif
+    if (hasError) {
+        fprintf(stderr, "Detect fatal errors, compiler terminated!\n");
+        exit(-1);
+    }
 }                           
 ;
 

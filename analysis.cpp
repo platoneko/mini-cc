@@ -20,9 +20,13 @@ static int funcType;
 static int isExtVar = 1;
 static int isFuncDef = 0;
 static int inLoop = 0;
-static vector<Symbol *> symbolTab;
+
+int hasError = 0;
+
+vector<Symbol *> symbolTab;
+map<string, int> funcTab;
 static vector<int> bTab;
-static map<string, int> funcTab;
+
 
 static void newAlias(char *alias) {
     static int cnt = 0;
@@ -244,14 +248,16 @@ static int checkUndeclaredVar(const char *name, int pos) {
             if (strcmp(symbolTab[index]->name, name) == 0) {
                 if (symbolTab[index]->flag == 'F') {
                     fprintf(stderr, "Semantic Error: illegal usage of function \"%s\" at line %d\n", name, pos);
+                    hasError = 1;
                     return -1;
                 }
-                return symbolTab[index]->type;
+                return index;
             }
             index = symbolTab[index]->link;
         } 
     }
     fprintf(stderr, "Semantic Error: variable \"%s\" undeclared at line %d\n", name, pos);
+    hasError = 1;
     return -1;
 }
 
@@ -263,12 +269,14 @@ static int checkUndeclaredFunc(const char *name, int pos, int argc) {
         int index = funcTab[name];
         if (symbolTab[index]->param > argc) {
             fprintf(stderr, "Semantic Error: too few arguments to function \"%s\" at line %d\n", name, pos);
+            hasError = 1;
             return -1;
         } else if (symbolTab[index]->param > argc) {
             fprintf(stderr, "Semantic Error: too many arguments to function \"%s\" at line %d\n", name, pos);
+            hasError = 1;
             return -1;
         }
-        return symbolTab[index]->type;
+        return index;
     }
 }
 
@@ -277,6 +285,7 @@ static int checkRedeclaration(const char *name, int pos) {
     while (index != -1) {
         if (strcmp(symbolTab[index]->name, name) == 0) {
             fprintf(stderr, "Semantic Error: redeclaration of \"%s\" at line %d\n", name, pos);
+            hasError = 1;
             return -1;
         }
         index = symbolTab[index]->link;
@@ -292,6 +301,7 @@ static void analysisExtVarDef(ASTNode *T) {
     curType = getType(T->ptr[0]->type_id);
     if (curType == VOID) {
         fprintf(stderr, "Semantic Error: variable declared void at line %d\n", T->pos);
+        hasError = 1;
     } else {
         analysis(T->ptr[1]);    //EXT_DEC_LIST
     }
@@ -310,13 +320,20 @@ static void analysisVarDec(ASTNode *T) {
         symbol->link = bTab[curLev];
         symbolTab.push_back(symbol);
         bTab[curLev] = symbolTab.size() - 1;
+        T->place = bTab[curLev];
     }
     #ifdef DEBUG
     displayTable();
     #endif
-    analysis(T->ptr[0]);
-    if (isExtVar && (T->ptr[0]->type != T->ptr[0]->kind)) {
-        fprintf(stderr, "Semantic Error: initializer element is not constant at line %d\n", T->pos);
+    if (T->ptr[0]) {
+        analysis(T->ptr[0]);
+        if (isExtVar && (T->ptr[0]->type != T->ptr[0]->kind)) {
+            fprintf(stderr, "Semantic Error: initializer element is not constant at line %d\n", T->pos);
+            hasError = 1;
+        } else if (T->ptr[0]->type == VOID) {
+            fprintf(stderr, "Semantic Error: void value not ignored as it ought to be at line %d\n", T->pos);
+            hasError = 1;
+        }
     }
 }
 
@@ -339,6 +356,7 @@ static void analysisFuncDec(ASTNode *T) {
         symbol->link = bTab[curLev];
         symbolTab.push_back(symbol);
         bTab[curLev] = symbolTab.size() - 1;
+        T->place = bTab[curLev];
     }
     #ifdef DEBUG
     displayTable();
@@ -370,6 +388,7 @@ static void analysisParamDec(ASTNode *T) {
         symbol->link = bTab[curLev];
         symbolTab.push_back(symbol);
         bTab[curLev] = symbolTab.size() - 1;
+        T->place = bTab[curLev];
     }
     #ifdef DEBUG
     displayTable();
@@ -397,6 +416,7 @@ static void analysisVarDef(ASTNode *T) {
     curType = getType(T->ptr[0]->type_id);
     if (curType == VOID) {
         fprintf(stderr, "Semantic Error: variable declared void at line %d\n", T->pos);
+        hasError = 1;
     } else {
         analysis(T->ptr[1]);    //VAR_DEC_LIST
     }
@@ -405,8 +425,10 @@ static void analysisVarDef(ASTNode *T) {
 static void analysisReturn(ASTNode *T) {
     if (T->ptr[0] && funcType == VOID) {
         fprintf(stderr, "Semantic Error: return with a value, in function returning void at line %d\n", T->pos);
+        hasError = 1;
     } else if (!T->ptr[0] && funcType != VOID) {
         fprintf(stderr, "Semantic Error: return with no value, in function returning non-void at line %d\n", T->pos);
+        hasError = 1;
     }
     analysis(T->ptr[0]);        //EXP_STMT
 }
@@ -416,6 +438,10 @@ static void analysisAssignop(ASTNode *T) {
     analysis(T->ptr[1]);
     if (T->ptr[0]->kind != ID) {
         fprintf(stderr, "Semantic Error: lvalue required as left operand of assignment at line %d\n", T->pos);
+        hasError = 1;
+    } else if (T->ptr[1]->type == VOID) {
+        fprintf(stderr, "Semantic Error: void value not ignored as it ought to be at line %d\n", T->pos);
+        hasError = 1;
     }
     T->type = T->ptr[0]->type;
 }
@@ -425,12 +451,17 @@ static void analysisCompAssign(ASTNode *T) {
     analysis(T->ptr[1]);
     if (T->ptr[0]->kind != ID) {
         fprintf(stderr, "Semantic Error: lvalue required as left operand of assignment at line %d\n", T->pos);
+        hasError = 1;
     }
     if (T->type_id[0]=='<' || T->type_id[0]=='>' || T->type_id[0]=='^' || T->type_id[0]=='&' || T->type_id[0]=='|') {
         if (T->ptr[0]->type == FLOAT || T->ptr[1]->type == FLOAT) {
             fprintf(stderr, "Semantic Error: invalid operands to binary %s at line %d (have \"%s\" and \"%s\")\n", 
             T->type_id, T->pos, displayType(T->ptr[0]->type).c_str(), displayType(T->ptr[1]->type).c_str());
+            hasError = 1;
         }
+    } else if (T->ptr[1]->type == VOID) {
+        fprintf(stderr, "Semantic Error: void value not ignored as it ought to be at line %d\n", T->pos);
+        hasError = 1;
     }
     T->type = T->ptr[0]->type;
 }
@@ -448,6 +479,9 @@ static void analysisAnd(ASTNode *T) {
         T->type_int = T->ptr[0]->type_int && T->ptr[1]->type_int;
         free(T->ptr[0]);
         free(T->ptr[1]);
+    } else if (T->ptr[0]->type == VOID || T->ptr[1]->type == VOID) {
+        fprintf(stderr, "Semantic Error: void value not ignored as it ought to be at line %d\n", T->pos);
+        hasError = 1;
     }
     T->type = INT;
 }
@@ -465,6 +499,9 @@ static void analysisOr(ASTNode *T) {
         T->type_int = T->ptr[0]->type_int || T->ptr[1]->type_int;
         free(T->ptr[0]);
         free(T->ptr[1]);
+    } else if (T->ptr[0]->type == VOID || T->ptr[1]->type == VOID) {
+        fprintf(stderr, "Semantic Error: void value not ignored as it ought to be at line %d\n", T->pos);
+        hasError = 1;
     }
     T->type = INT;
 }
@@ -477,6 +514,9 @@ static void analysisRelop(ASTNode *T) {
         T->kind = INT;
         free(T->ptr[0]);
         free(T->ptr[1]);
+    } else if (T->ptr[0]->type == VOID || T->ptr[1]->type == VOID) {
+        fprintf(stderr, "Semantic Error: void value not ignored as it ought to be at line %d\n", T->pos);
+        hasError = 1;
     }
     T->type = INT;
 }
@@ -493,6 +533,9 @@ static void analysisArithOp(ASTNode *T) {
             T->type_int = typeVal.type_int;
         free(T->ptr[0]);
         free(T->ptr[1]);
+    } else if (T->ptr[0]->type == VOID || T->ptr[1]->type == VOID) {
+        fprintf(stderr, "Semantic Error: void value not ignored as it ought to be at line %d\n", T->pos);
+        hasError = 1;
     } else {
         if (T->ptr[0]->type == FLOAT || T->ptr[1]->type == FLOAT)
             T->type = FLOAT;
@@ -528,6 +571,10 @@ static void analysisBinaryOp(ASTNode *T) {
     if (T->ptr[0]->type == FLOAT || T->ptr[1]->type == FLOAT) {
         fprintf(stderr, "Semantic Error: invalid operands to binary %s at line %d (have \"%s\" and \"%s\")\n", 
                 op, T->pos, displayType(T->ptr[0]->type).c_str(), displayType(T->ptr[1]->type).c_str());
+        hasError = 1;
+    } else if (T->ptr[0]->type == VOID || T->ptr[1]->type) {
+        fprintf(stderr, "Semantic Error: void value not ignored as it ought to be at line %d\n", T->pos);
+        hasError = 1;
     } else {
         if (T->ptr[0]->kind == INT && T->ptr[1]->kind == INT) {
             T->type_int = T->ptr[0]->type_int % T->ptr[1]->type_int;
@@ -544,6 +591,9 @@ static void analysisNot(ASTNode *T) {
     if (T->ptr[0]->kind == T->ptr[0]->type) {
         T->type_int = !T->ptr[0]->type_int;
         T->kind = INT;
+    } else if (T->ptr[0]->type == VOID) {
+        fprintf(stderr, "Semantic Error: void value not ignored as it ought to be at line %d\n", T->pos);
+        hasError = 1;
     }
     T->type = INT;
 }
@@ -556,6 +606,9 @@ static void analysisUminus(ASTNode *T) {
     } else if (T->ptr[0]->kind == FLOAT) {
         T->type_float = -T->ptr[0]->type_float;
         T->kind = FLOAT;
+    } else if (T->ptr[0]->type == VOID) {
+        fprintf(stderr, "Semantic Error: void value not ignored as it ought to be at line %d\n", T->pos);
+        hasError = 1;
     }
     T->type = T->ptr[0]->type;
 }
@@ -569,7 +622,10 @@ static void analysisFuncCall(ASTNode *T) {
         cnt++;
         T0 = T0->ptr[1];
     }
-    T->type = checkUndeclaredFunc(T->type_id, T->pos, cnt);
+    int place = checkUndeclaredFunc(T->type_id, T->pos, cnt);
+    if (place != -1) {
+        T->type = symbolTab[place]->type;
+    }
     analysis(T->ptr[0]);        //ARGS
 }
 
@@ -643,15 +699,20 @@ void analysis(ASTNode *T) {
         case CONTINUE:
             if (!inLoop) {
                 fprintf(stderr, "Semantic Error: continue statement not within a loop at line %d\n", T->pos);
+                hasError = 1;
             }
             break;
         case BREAK:
             if (!inLoop) {
                 fprintf(stderr, "Semantic Error: break statement not within a loop at line %d\n", T->pos);
+                hasError = 1;
             }
             break;
         case ID:
-            T->type = checkUndeclaredVar(T->type_id, T->pos);
+            T->place = checkUndeclaredVar(T->type_id, T->pos);
+            if (T->place != -1) {
+                T->type = symbolTab[T->place]->type;
+            }
             break;
         case INT:
             T->type = INT;
@@ -697,11 +758,13 @@ void analysis(ASTNode *T) {
         case DPLUS:
             if (T->ptr[0]->kind != ID) {
                 fprintf(stderr, "Semantic Error: lvalue required as increment operand at line %d\n", T->pos);
+                hasError = 1;
             }
             break;
         case DMINUS:
             if (T->ptr[0]->kind != ID) {
                 fprintf(stderr, "Semantic Error: lvalue required as decrement operand at line %d\n", T->pos);
+                hasError = 1;
             }
             break;
         case FUNC_CALL:

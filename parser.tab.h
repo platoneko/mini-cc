@@ -109,20 +109,21 @@ extern int yydebug;
     VAR = 315,
     PARAM = 316,
     FUNC = 317,
-    ARRAY = 318,
+    ARG = 318,
     VOID = 319,
-    LABEL = 320,
-    GOTO = 321,
-    EQ = 322,
-    NEQ = 323,
-    LT = 324,
-    LE = 325,
-    GT = 326,
-    GE = 327,
-    UMINUS = 328,
-    DPLUS = 329,
-    DMINUS = 330,
-    LOWER_THEN_ELSE = 331
+    ARRAY = 320,
+    LABEL = 321,
+    GOTO = 322,
+    EQ = 323,
+    NEQ = 324,
+    LT = 325,
+    LE = 326,
+    GT = 327,
+    GE = 328,
+    UMINUS = 329,
+    DPLUS = 330,
+    DMINUS = 331,
+    LOWER_THEN_ELSE = 332
   };
 #endif
 
@@ -130,7 +131,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 17 "parser.y"
+#line 19 "parser.y"
 
     int    type_int;
     float  type_float;
@@ -138,7 +139,7 @@ union YYSTYPE
     char   type_id[32];
     struct ASTNode *ptr;
 
-#line 142 "parser.tab.h"
+#line 143 "parser.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;
