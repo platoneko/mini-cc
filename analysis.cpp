@@ -24,9 +24,9 @@ static vector<Symbol *> symbolTab;
 static vector<int> bTab;
 static map<string, int> funcTab;
 
-static void newAlias(char *text) {
+static void newAlias(char *alias) {
     static int cnt = 0;
-    sprintf(text, "V%d", cnt);
+    sprintf(alias, "V%d", cnt);
 }
 
 static TypeVal getTypeVal(ASTNode *lT, ASTNode *rT, int kind, char *relop) {
@@ -225,61 +225,69 @@ static string displayType(int type) {
 }
 
 static void displayTable() {
-    printf("name\tlev\ttype\tflag\tparam\n");
+    printf("name\tlev\ttype\tflag\tparam\tlink\n");
     for (auto it=symbolTab.cbegin(); it!=symbolTab.cend(); it++) {
-        printf("%s\t%d\t%s\t%c\t%d\n", (*it)->name, (*it)->lev, displayType((*it)->type).c_str(), (*it)->flag, (*it)->param);
+        printf("%s\t%d\t%s\t%c\t%d\t%d\n", (*it)->name, (*it)->lev, displayType((*it)->type).c_str(), (*it)->flag, (*it)->param, (*it)->link);
+    }
+    printf("\n");
+    for (auto it=bTab.cbegin(); it!=bTab.cend(); it++) {
+        printf("%d\n", *it);
     }
     printf("\n");
 }
 
 static int checkUndeclaredVar(const char *name, int pos) {
-    for (auto it=symbolTab.crbegin(); it!=symbolTab.crend(); it++) {
-        if (strcmp((*it)->name, name) == 0) {
-            if ((*it)->flag == 'F') {
-                fprintf(stderr, "Semantic Error: illegal usage of function \"%s\" at line %d\n", name, pos);
-                return -1;
+    int lev, index;
+    for (lev = curLev; lev >= 0; --lev) {
+        index = bTab[lev];
+        while (index != -1) {
+            if (strcmp(symbolTab[index]->name, name) == 0) {
+                if (symbolTab[index]->flag == 'F') {
+                    fprintf(stderr, "Semantic Error: illegal usage of function \"%s\" at line %d\n", name, pos);
+                    return -1;
+                }
+                return symbolTab[index]->type;
             }
-            return (*it)->type;
-        }
+            index = symbolTab[index]->link;
+        } 
     }
     fprintf(stderr, "Semantic Error: variable \"%s\" undeclared at line %d\n", name, pos);
     return -1;
 }
 
 static int checkUndeclaredFunc(const char *name, int pos, int argc) {
-    for (auto it=symbolTab.crbegin(); it!=symbolTab.crend(); it++) {
-        if (strcmp((*it)->name, name) == 0) {
-            if ((*it)->flag != 'F') {
-                fprintf(stderr, "Semantic Error: called object \"%s\" is not a function at line %d\n", name, pos);
-                return -1;
-            }
-            if ((*it)->param > argc) {
-                fprintf(stderr, "Semantic Error: too few arguments to function \"%s\" at line %d\n", name, pos);
-                return -1;
-            } else if ((*it)->param < argc) {
-                fprintf(stderr, "Semantic Error: too many arguments to function \"%s\" at line %d\n", name, pos);
-                return -1;
-            }
-            return (*it)->type;
+    if (funcTab.count(name) == 0) {
+        fprintf(stderr, "Semantic Error: function \"%s\" undeclared at line %d\n", name, pos);
+        return -1;
+    } else {
+        int index = funcTab[name];
+        if (symbolTab[index]->param > argc) {
+            fprintf(stderr, "Semantic Error: too few arguments to function \"%s\" at line %d\n", name, pos);
+            return -1;
+        } else if (symbolTab[index]->param > argc) {
+            fprintf(stderr, "Semantic Error: too many arguments to function \"%s\" at line %d\n", name, pos);
+            return -1;
         }
+        return symbolTab[index]->type;
     }
-    fprintf(stderr, "Semantic Error: function \"%s\" undeclared at line %d\n", name, pos);
-    return -1;
 }
 
 static int checkRedeclaration(const char *name, int pos) {
-    for (auto it=symbolTab.crbegin(); it!=symbolTab.crend(); it++) {
-        if ((*it)->lev != curLev) 
-            return 0;
-        if (strcmp((*it)->name, name) == 0) {
+    int index = bTab[curLev];
+    while (index != -1) {
+        if (strcmp(symbolTab[index]->name, name) == 0) {
             fprintf(stderr, "Semantic Error: redeclaration of \"%s\" at line %d\n", name, pos);
             return -1;
         }
+        index = symbolTab[index]->link;
     }
     return 0;
 }
 
 static void analysisExtVarDef(ASTNode *T) {
+    if (bTab.empty()) {
+        bTab.push_back(-1);
+    }
     isExtVar = 1;
     curType = getType(T->ptr[0]->type_id);
     if (curType == VOID) {
@@ -293,12 +301,15 @@ static void analysisExtVarDef(ASTNode *T) {
 static void analysisVarDec(ASTNode *T) {
     Symbol *symbol;
     if (checkRedeclaration(T->type_id, T->pos) != -1) {
-        symbol = new Symbol;
+        symbol = new Symbol();
         strcpy(symbol->name, T->type_id);
         symbol->flag = 'V';
         symbol->type = curType;
         symbol->lev = curLev;
+        newAlias(symbol->alias);
+        symbol->link = bTab[curLev];
         symbolTab.push_back(symbol);
+        bTab[curLev] = symbolTab.size() - 1;
     }
     #ifdef DEBUG
     displayTable();
@@ -314,7 +325,7 @@ static void analysisFuncDec(ASTNode *T) {
     ASTNode *T0;
     int cnt = 0;
     if (checkRedeclaration(T->type_id, T->pos) != -1) {
-        symbol = new Symbol;
+        symbol = new Symbol();
         strcpy(symbol->name, T->type_id);
         symbol->flag = 'F';
         symbol->type = funcType;
@@ -325,25 +336,40 @@ static void analysisFuncDec(ASTNode *T) {
             T0 = T0->ptr[1];
         }
         symbol->param = cnt;
+        symbol->link = bTab[curLev];
         symbolTab.push_back(symbol);
+        bTab[curLev] = symbolTab.size() - 1;
     }
     #ifdef DEBUG
     displayTable();
     #endif
     curLev++;
+    if (bTab.size() == curLev) {
+        bTab.push_back(-1);
+    } else {
+        bTab[curLev] = -1;
+    }
     analysis(T->ptr[0]);        //PARAM_LIST
+}
+
+static void analysisParamList(ASTNode *T) {
+    analysis(T->ptr[0]);        //PARAM_DEC
+    analysis(T->ptr[1]);        //PARAM_LIST
 }
 
 static void analysisParamDec(ASTNode *T) {
     Symbol *symbol;
     if (checkRedeclaration(T->type_id, T->pos) != -1) {
-        symbol = new Symbol;
+        symbol = new Symbol();
         curType = getType(T->ptr[0]->type_id);
         strcpy(symbol->name, T->type_id);
         symbol->flag = 'P';
         symbol->type = curType;
         symbol->lev = 1;
+        newAlias(symbol->alias);
+        symbol->link = bTab[curLev];
         symbolTab.push_back(symbol);
+        bTab[curLev] = symbolTab.size() - 1;
     }
     #ifdef DEBUG
     displayTable();
@@ -351,13 +377,16 @@ static void analysisParamDec(ASTNode *T) {
 }
 
 static void analysisCompStm(ASTNode *T) {
-    if (!isFuncDef) curLev++;
+    if (!isFuncDef) {
+        curLev++;
+        if (bTab.size() == curLev) {
+            bTab.push_back(-1);
+        } else {
+            bTab[curLev] = -1;
+        }
+    }
     isFuncDef = 0;
     analysis(T->ptr[0]);        //STM_LIST
-    while (symbolTab.back()->lev == curLev) {
-        delete symbolTab.back();
-        symbolTab.pop_back();
-    }
     #ifdef DEBUG
     displayTable();
     #endif
@@ -544,7 +573,7 @@ static void analysisFuncCall(ASTNode *T) {
     analysis(T->ptr[0]);        //ARGS
 }
 
-static void analysis(ASTNode *T) {
+void analysis(ASTNode *T) {
     if (T) {
         switch (T->kind) {
         case EXT_DEF_LIST:
@@ -571,8 +600,7 @@ static void analysis(ASTNode *T) {
             analysisFuncDec(T);
             break;
         case PARAM_LIST:
-            analysis(T->ptr[0]);        //PARAM_DEC
-            analysis(T->ptr[1]);        //PARAM_LIST
+            analysisParamList(T);
             break;
         case PARAM_DEC:
             analysisParamDec(T);
