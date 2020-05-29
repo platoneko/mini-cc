@@ -356,7 +356,7 @@ static void analysisFuncDec(ASTNode *T) {
         symbol->link = bTab[curLev];
         symbolTab.push_back(symbol);
         bTab[curLev] = symbolTab.size() - 1;
-        T->place = bTab[curLev];
+        T->place = funcTab[T->type_id] = bTab[curLev];
     }
     #ifdef DEBUG
     displayTable();
@@ -423,14 +423,21 @@ static void analysisVarDef(ASTNode *T) {
 }
 
 static void analysisReturn(ASTNode *T) {
-    if (T->ptr[0] && funcType == VOID) {
-        fprintf(stderr, "Semantic Error: return with a value, in function returning void at line %d\n", T->pos);
-        hasError = 1;
-    } else if (!T->ptr[0] && funcType != VOID) {
-        fprintf(stderr, "Semantic Error: return with no value, in function returning non-void at line %d\n", T->pos);
-        hasError = 1;
+    if (T->ptr[0]) {
+        analysis(T->ptr[0]);    //EXP_STMT
+        if (funcType == VOID && T->ptr[0]->type != VOID) {
+            fprintf(stderr, "Semantic Error: return with a value, in function returning void at line %d\n", T->pos);
+            hasError = 1;
+        } else if (funcType != VOID && T->ptr[0]->type == VOID) {
+            fprintf(stderr, "Semantic Error: return with no value, in function returning non-void at line %d\n", T->pos);
+            hasError = 1;
+        }
+    } else {
+        if (funcType != VOID) {
+            fprintf(stderr, "Semantic Error: return with no value, in function returning non-void at line %d\n", T->pos);
+            hasError = 1;
+        }
     }
-    analysis(T->ptr[0]);        //EXP_STMT
 }
 
 static void analysisAssignop(ASTNode *T) {
@@ -572,7 +579,7 @@ static void analysisBinaryOp(ASTNode *T) {
         fprintf(stderr, "Semantic Error: invalid operands to binary %s at line %d (have \"%s\" and \"%s\")\n", 
                 op, T->pos, displayType(T->ptr[0]->type).c_str(), displayType(T->ptr[1]->type).c_str());
         hasError = 1;
-    } else if (T->ptr[0]->type == VOID || T->ptr[1]->type) {
+    } else if (T->ptr[0]->type == VOID || T->ptr[1]->type == VOID) {
         fprintf(stderr, "Semantic Error: void value not ignored as it ought to be at line %d\n", T->pos);
         hasError = 1;
     } else {
