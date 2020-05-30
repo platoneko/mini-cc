@@ -233,7 +233,7 @@ void display(struct ASTNode *T,int indent) {
             printf("%*cARRAY_DEC:%s\n", indent, ' ', T->type_id);
             printf("%*cARRAY_SUB_LIST:\n", indent+3, ' ');
             display(T->ptr[0], indent+6);       //ARRAY_SUB_LIST
-            display(T->ptr[1], indent+3);   
+            display(T->ptr[1], indent+3);       //ARRAY_INIT_LIST
             break;
         case ARRAY_SUB_LIST:
             if (T->ptr[0] == NULL) {

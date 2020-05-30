@@ -328,7 +328,7 @@ invalid_char '([ -&(-[\]-~]|(\\([abfnrtv\\?'"0]|([0-3][0-7][0-7])|(x[0-9a-fA-F][
 [ \r\n\t]   {}
 
 ({int}|{hex}|{float}|(({int}|{float}){expo}))[\.a-zA-Z_][\.a-zA-Z_0-9]* { 
-    printf("Lex Error: invalid identifier \"%s\" at line %d\n", yytext, yylineno); 
+    printf("Lex Error: invalid identifier \"%s\" at line %d\n", yytext, yylineno);
 }
 
 {invalid_char} { printf("Lex Error: invalid character constant %s at line %d\n", yytext, yylineno); return CHAR; }

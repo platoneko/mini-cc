@@ -31,7 +31,6 @@ struct ASTNode {
 	};
     struct ASTNode *ptr[3];
 	char Etrue[8], Efalse[8];				//中间代码，转移目标label
-	char Snext[8];							//中间代码
 	struct TACNode *code;					//中间代码链表头指针
 	int kind;						
 	int pos;								//结点行号，用于输出错误信息
@@ -47,11 +46,23 @@ struct Symbol {
 	int type;
 	int offset;
 	int link;
+	int ref;
+	int dim;
 	char flag;
+};
+
+struct Array {
+	int type;
+	int eltype;
+	int elref;
+	int high;
 };
 
 struct ASTNode *mknode(int num, int kind, int pos, ...);
 void display(struct ASTNode *T, int indent);
 
 void analysis(struct ASTNode *T);
+
+void genTAC(struct ASTNode *T);
+void displayTAC(TACNode *head);
 #endif

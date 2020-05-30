@@ -1321,7 +1321,7 @@ case 44:
 YY_RULE_SETUP
 #line 330 "lex.l"
 { 
-    printf("Lex Error: invalid identifier \"%s\" at line %d\n", yytext, yylineno); 
+    printf("Lex Error: invalid identifier \"%s\" at line %d\n", yytext, yylineno);
 }
 	YY_BREAK
 case 45:

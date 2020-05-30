@@ -7,11 +7,9 @@
 
 ## Supported Syntax
 
-C89 like
-
 - datatype: int, float, char
 - function define, call
-- array
+- array(Not pointer! Any arbitrary memory operation is not allowed!)
 - while, nested if else
 - `//` & `/*...*/` style comment
 

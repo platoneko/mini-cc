@@ -74,6 +74,8 @@ Program: ExtDefList {
         fprintf(stderr, "Detect fatal errors, compiler terminated!\n");
         exit(-1);
     }
+    genTAC($1);
+    displayTAC($1->code);
 }                           
 ;
 
@@ -198,7 +200,8 @@ int main(int argc, char *argv[]) {
 void yyerror(const char* fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
-    fprintf(stderr, "Syntax Error at line %d: ", yylineno);
+    fprintf(stderr, "line %d: ", yylineno);
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, ".\n");
+    exit(-1);
 }
