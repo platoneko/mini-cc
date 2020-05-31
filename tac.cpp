@@ -170,10 +170,9 @@ void displayTAC(TACNode *head) {
 static TACNode *merge(int num, ...) {
     va_list pArgs;
     va_start(pArgs, num);
-    TACNode *head;
+    TACNode *head1, *head2, *tail1, *tail2;
     int i = 1;
-    while ((head = va_arg(pArgs, TACNode *)) == NULL) i++;
-    TACNode *head1 = head, *head2, *tail1, *tail2;
+    while ((head1 = va_arg(pArgs, TACNode *)) == NULL && i < num) ++i;
     for (; i<num; ++i) {
         head2 = va_arg(pArgs, TACNode *);
         if (head2 == NULL)
@@ -185,7 +184,7 @@ static TACNode *merge(int num, ...) {
         head1->prior = tail2;
         head2->prior = tail1;
     }
-    return head;
+    return head1;
 }
 
 static void newLabel(char *label) {

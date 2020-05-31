@@ -68,10 +68,9 @@ Program: ExtDefList {
         fprintf(stderr, "Detect fatal errors, compiler terminated!\n");
         exit(-1);
     }
+    displayTable();
     genTAC($1);
-    #ifdef DEBUG
     displayTAC($1->code);
-    #endif
 }                           
 ;
 
