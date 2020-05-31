@@ -63,19 +63,15 @@ extern int hasError;
 %%
 
 Program: ExtDefList {
-    #ifdef DEBUG
-    display($1, 0);
-    #endif
     analysis($1);
-    #ifdef DEBUG
-    display($1, 0);
-    #endif
     if (hasError) {
         fprintf(stderr, "Detect fatal errors, compiler terminated!\n");
         exit(-1);
     }
     genTAC($1);
+    #ifdef DEBUG
     displayTAC($1->code);
+    #endif
 }                           
 ;
 

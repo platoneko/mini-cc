@@ -62,6 +62,7 @@ struct ASTNode *mknode(int num, int kind, int pos, ...);
 void display(struct ASTNode *T, int indent);
 
 void analysis(struct ASTNode *T);
+void displayTable();
 
 void genTAC(struct ASTNode *T);
 void displayTAC(TACNode *head);

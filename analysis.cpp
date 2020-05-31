@@ -247,7 +247,7 @@ static string displayType(int type) {
     }
 }
 
-static void displayTable() {
+void displayTable() {
     printf("name\talias\tlev\ttype\tflag\tparam\tref\tlink\n");
     for (auto it=symbolTab.cbegin(); it!=symbolTab.cend(); it++) {
         printf("%s\t%s\t%d\t%s\t%c\t%d\t%d\t%d\n", (*it)->name, (*it)->alias, (*it)->lev, displayType((*it)->type).c_str(), (*it)->flag, (*it)->param, (*it)->ref, (*it)->link);
