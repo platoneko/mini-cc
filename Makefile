@@ -1,4 +1,4 @@
-mini-cc: lex.l parser.y
+mini-cc:
 	bison -d -v parser.y
 	flex lex.l 
 	g++ parser.tab.c utils.c lex.yy.c ast.c analysis.cpp tac.cpp -lfl -o bin/$@ 

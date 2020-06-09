@@ -1,6 +1,7 @@
 #include "def.h"
 
 #include <vector>
+#include <stack>
 #include <string>
 #include <map>
 
@@ -8,6 +9,9 @@ using namespace std;
 
 extern vector<Symbol *> symbolTab;
 extern map<string, int> funcTab;
+static stack<char *> beginStack;        // Warning!
+static stack<char *> nextStack;         // Warning!
+
 
 void displayTAC(TACNode *head) {
     if (head == NULL) return;
@@ -406,6 +410,8 @@ static void genWhile(ASTNode *T) {
     strcpy(T->ptr[0]->Efalse, next);
     genTAC(T->ptr[0]);          //EXP
     if (T->ptr[1]) {
+        nextStack.push(next);
+        beginStack.push(begin);
         genTAC(T->ptr[1]);          //STMT
         T->code = merge(6, genLabel(begin),
                         T->ptr[0]->code,
@@ -413,6 +419,8 @@ static void genWhile(ASTNode *T) {
                         T->ptr[1]->code,
                         genGoto(begin),
                         genLabel(next));
+        nextStack.pop();
+        beginStack.pop();
     } else {
         T->code = merge(5, genLabel(begin),
                         T->ptr[0]->code,
@@ -1024,10 +1032,10 @@ void genTAC(ASTNode *T) {
             genWhile(T);
             break;
         case CONTINUE:
-            //TODO
+            T->code = genGoto(beginStack.top());
             break;
         case BREAK:
-            //TODO
+            T->code = genGoto(nextStack.top());
             break;
         case ID:
             genId(T);
