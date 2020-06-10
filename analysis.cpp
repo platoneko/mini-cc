@@ -35,17 +35,23 @@ static void newAlias(char *alias) {
 }
 
 static int newArray(int type, vector<int>::const_iterator begin, vector<int>::const_iterator end) {
-    int ref = arrayTab.size();
+    int ref = arrayTab.size(), width;
     Array *array = new Array();
     arrayTab.push_back(array);
     array->type = type;
     array->high = *begin;
+    if (type == CHAR)
+        width = 1;
+    else
+        width = 4;
     if (begin+1 != end) {
         array->eltype = ARRAY;
         array->elref = newArray(type, begin+1, end);
+        array->elsize = arrayTab[array->elref]->elsize * arrayTab[array->elref]->high;
     } else {
         array->eltype = type;
         array->elref = -1;
+        array->elsize = width;
     }
     return ref;
 }
@@ -253,9 +259,9 @@ void displayTable() {
         printf("%s\t%s\t%d\t%s\t%c\t%d\t%d\t%d\n", (*it)->name, (*it)->alias, (*it)->lev, displayType((*it)->type).c_str(), (*it)->flag, (*it)->param, (*it)->ref, (*it)->link);
     }
     printf("\n");
-    printf("type\teltype\telref\thigh\n");
+    printf("type\teltype\telref\thigh\telsize\n");
     for (auto it=arrayTab.cbegin(); it!=arrayTab.cend(); it++) {
-        printf("%s\t%s\t%d\t%d\n", displayType((*it)->type).c_str(), displayType((*it)->eltype).c_str(), (*it)->elref, (*it)->high);
+        printf("%s\t%s\t%d\t%d\t%d\n", displayType((*it)->type).c_str(), displayType((*it)->eltype).c_str(), (*it)->elref, (*it)->high, (*it)->elsize);
     }
     printf("\n");
 }
@@ -792,6 +798,7 @@ static void analysisArrayRef(ASTNode *T) {
         return;
     }
     T->type = symbolTab[place]->type;
+    T->place = place;
 }
 
 void analysis(ASTNode *T) {

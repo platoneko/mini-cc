@@ -112,18 +112,20 @@ extern int yydebug;
     ARG = 318,
     VOID = 319,
     ARRAY = 320,
-    LABEL = 321,
-    GOTO = 322,
-    EQ = 323,
-    NEQ = 324,
-    LT = 325,
-    LE = 326,
-    GT = 327,
-    GE = 328,
-    UMINUS = 329,
-    DPLUS = 330,
-    DMINUS = 331,
-    LOWER_THEN_ELSE = 332
+    LARRAY_REF = 321,
+    RARRAY_REF = 322,
+    LABEL = 323,
+    GOTO = 324,
+    EQ = 325,
+    NEQ = 326,
+    LT = 327,
+    LE = 328,
+    GT = 329,
+    GE = 330,
+    UMINUS = 331,
+    DPLUS = 332,
+    DMINUS = 333,
+    LOWER_THEN_ELSE = 334
   };
 #endif
 
@@ -139,7 +141,7 @@ union YYSTYPE
     char   type_id[32];
     struct ASTNode *ptr;
 
-#line 143 "parser.tab.h"
+#line 145 "parser.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

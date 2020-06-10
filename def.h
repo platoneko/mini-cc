@@ -56,6 +56,7 @@ struct Array {
 	int eltype;
 	int elref;
 	int high;
+	int elsize;
 };
 
 struct ASTNode *mknode(int num, int kind, int pos, ...);
