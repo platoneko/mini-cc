@@ -66,5 +66,5 @@ void analysis(struct ASTNode *T);
 void displayTable();
 
 void genTAC(struct ASTNode *T);
-void displayTAC(TACNode *head);
+void displayTAC(struct TACNode *head);
 #endif

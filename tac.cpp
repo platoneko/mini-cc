@@ -324,8 +324,8 @@ static Opn genArrayOffset(ASTNode *T) {
 
 static void genVarDec(ASTNode *T) {
     //T->ptr[0] maybe NULL
-    Opn opn1, result;
     if (T->ptr[0]) {            //ID ASSIGNOP EXP
+        Opn opn1, result;
         result.kind = VAR;
         result.place = T->place;
         if (T->ptr[0]->kind == T->ptr[0]->type) {
@@ -1114,6 +1114,40 @@ static void genRArrayRef(ASTNode *T) {
     T->place = result.place;
 }
 
+static void genArrayDec(ASTNode *T) {
+    //T->ptr[1] maybe NULL
+    if (T->ptr[1]) {                        //ARRAY_INIT_LIST
+        Opn array, offset, ropn;
+        ASTNode *T0 = T->ptr[1]->ptr[0];    //ARGS
+        int width;
+        if (T->type == CHAR)
+            width = 1;
+        else
+            width = 4;
+        offset.kind = INT;
+        offset.const_int = 0;
+        array.kind = VAR;
+        array.place = T->place;
+        while (T0) {
+            if (T0->ptr[0]->kind == T0->ptr[0]->type) {
+                ropn.kind = T0->ptr[0]->type;
+                if (T0->ptr[0]->type == FLOAT) {
+                    ropn.const_float = T0->ptr[0]->type_float;
+                } else {
+                    ropn.const_int = T0->ptr[0]->type_int;
+                }
+            } else {
+                genTAC(T0->ptr[0]);  //EXP
+                ropn.kind = VAR;
+                ropn.place = T0->ptr[0]->place;
+            }
+            T->code = merge(3, T->code, T0->ptr[0]->code, gen(LARRAY_REF, array, offset, ropn));
+            T0 = T0->ptr[1];
+            offset.const_int += width;
+        }
+    }
+}
+
 void genTAC(ASTNode *T) {
     if (T) {
         switch (T->kind) {              
@@ -1174,7 +1208,7 @@ void genTAC(ASTNode *T) {
             T->code = T->ptr[1]->code;
             break;
         case VAR_DEC_LIST:              //T->ptr[1] maybe NULL
-            genTAC(T->ptr[0]);          //VAR_DEC
+            genTAC(T->ptr[0]);          //VAR_DEC|ARRAY_DEC
             if (T->ptr[1]) {
                 genTAC(T->ptr[1]);      //VAR_DEC_LIST
                 T->code = merge(2, T->ptr[0]->code, T->ptr[1]->code);
@@ -1269,6 +1303,7 @@ void genTAC(ASTNode *T) {
             genArgs(T);
             break;
         case ARRAY_DEC:
+            genArrayDec(T);
             break;
         case ARRAY_REF:
             genRArrayRef(T);
