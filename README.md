@@ -7,7 +7,7 @@
 
 ## Supported Syntax
 
-- datatype: int, float, char
+- datatype: int, float, char (only int in generating mips)
 - function define, call
 - array(Not pointer! Any arbitrary memory operation is not allowed!)
 - while, nested if else
