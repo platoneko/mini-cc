@@ -26,8 +26,8 @@ vector<Symbol *> symbolTab;
 map<string, int> funcTab;
 vector<Array *> arrayTab;
 static vector<int> bTab;
-static int staticOffset = 0;
-static int autoOffset = 0;
+static int gpOffset = 0;
+static int spOffset = 0;
 
 
 static void newAlias(char *alias) {
@@ -335,10 +335,16 @@ static void analysisVarDec(ASTNode *T) {
     Symbol *symbol;
     if (checkRedeclaration(T->type_id, T->pos) != -1) {
         int width;
-        if (T->type == CHAR)
+        if (T->type == CHAR) {
             width = 1;
-        else
+        } else {
             width = 4;
+            if (curLev == 0 && (gpOffset & 0x3)) {
+                gpOffset = (gpOffset & 0xfffffffc) + 4;
+            } else if (curLev != 0 && (spOffset & 0x3)) {
+                spOffset = (spOffset & 0xfffffffc) + 4;
+            }
+        }
         symbol = new Symbol();
         strcpy(symbol->name, T->type_id);
         symbol->flag = 'V';
@@ -348,11 +354,11 @@ static void analysisVarDec(ASTNode *T) {
         symbol->link = bTab[curLev];
         symbol->ref = -1;
         if (curLev == 0) {
-            symbol->offset = staticOffset;
-            staticOffset += width;
+            symbol->offset = gpOffset;
+            gpOffset += width;
         } else {
-            symbol->offset = autoOffset;
-            autoOffset += width;
+            symbol->offset = spOffset;
+            spOffset += width;
         }
         symbolTab.push_back(symbol);
         bTab[curLev] = symbolTab.size() - 1;
@@ -375,11 +381,11 @@ static void analysisVarDec(ASTNode *T) {
 
 static void analysisFuncDef(ASTNode *T) {
     funcType = getType(T->ptr[0]->type_id);
-    autoOffset = 0;
+    spOffset = 0;
     analysis(T->ptr[1]);        //FUNC_DEC
     isFuncDef = 1;
     analysis(T->ptr[2]);        //COMP_STM
-    symbolTab[funcTab.at(T->ptr[1]->type_id)]->offset = autoOffset;
+    symbolTab[funcTab.at(T->ptr[1]->type_id)]->offset = spOffset;
 }
 
 static void analysisFuncDec(ASTNode *T) {
@@ -433,11 +439,11 @@ static void analysisParamDec(ASTNode *T) {
         newAlias(symbol->alias);
         symbol->link = bTab[curLev];
         symbol->ref = -1;
-        symbol->offset = autoOffset;
+        symbol->offset = spOffset;
         if (T->type == CHAR)
-            autoOffset += 1;
+            spOffset += 1;
         else
-            autoOffset += 4;
+            spOffset += 4;
         symbolTab.push_back(symbol);
         bTab[curLev] = symbolTab.size() - 1;
         T->place = bTab[curLev];
@@ -765,11 +771,11 @@ static void analysisArrayDec(ASTNode *T) {
         symbol->ref = newArray(curType, subList.cbegin(), subList.cend());
         symbol->dim = subList.size();
         if (curLev == 0) {
-            symbol->offset = staticOffset;
-            staticOffset += arrayTab[symbol->ref]->elsize * arrayTab[symbol->ref]->high;
+            symbol->offset = gpOffset;
+            gpOffset += arrayTab[symbol->ref]->elsize * arrayTab[symbol->ref]->high;
         } else {
-            symbol->offset = autoOffset;
-            autoOffset += arrayTab[symbol->ref]->elsize * arrayTab[symbol->ref]->high;
+            symbol->offset = spOffset;
+            spOffset += arrayTab[symbol->ref]->elsize * arrayTab[symbol->ref]->high;
         }
         symbolTab.push_back(symbol);
         bTab[curLev] = symbolTab.size() - 1;
