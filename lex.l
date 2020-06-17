@@ -133,6 +133,13 @@ invalid_char '([ -&(-[\]-~]|(\\([abfnrtv\\?'"0]|([0-3][0-7][0-7])|(x[0-9a-fA-F][
     return BREAK; 
 }
 
+"syscall" {
+    #ifdef DEBUG
+    printf("(SYSCALL, -)\n"); 
+    #endif
+    return SYSCALL; 
+}
+
 {id} { 
     #ifdef DEBUG
     printf("(ID, %s)\n", yytext); 

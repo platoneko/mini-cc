@@ -259,6 +259,9 @@ void display(struct ASTNode *T,int indent) {
             printf("%*cARRAY_SUB_LIST:\n", indent+3, ' '); 
             display(T->ptr[1], indent+6);
             break;
+        case SYSCALL:
+            printf("%*SYSCALL %d\n", indent, ' ', T->type_int);   
+            break;
         }
     }
 }

@@ -123,7 +123,7 @@ void genMips(TACNode *head, const char *output) {
                 loadVar(symbolTab[node->opn1.place], "$t1");
             }
             if (node->opn2.kind == INT) {
-                fprintf(fp, "  ori $t2,$0,%d\n", node->opn1.const_int);
+                fprintf(fp, "  ori $t2,$0,%d\n", node->opn2.const_int);
             } else {
                 loadVar(symbolTab[node->opn1.place], "$t2");
             }
@@ -136,7 +136,7 @@ void genMips(TACNode *head, const char *output) {
                 loadVar(symbolTab[node->opn1.place], "$t1");
             }
             if (node->opn2.kind == INT) {
-                fprintf(fp, "  ori $t2,$0,%d\n", node->opn1.const_int);
+                fprintf(fp, "  ori $t2,$0,%d\n", node->opn2.const_int);
             } else {
                 loadVar(symbolTab[node->opn1.place], "$t2");
             }
@@ -433,6 +433,9 @@ void genMips(TACNode *head, const char *output) {
         case ARG:
             if (node->result.kind == INT) {
                 if (argCnt < 4) {
+                    if (paramNum > argCnt) {
+                        fprintf(fp, "  sw $a%d,%d($sp)\n", argCnt, argCnt<<2);
+                    }
                     fprintf(fp, "  ori $a%d,$0,%d\n", argCnt, node->result.const_int);
                 } else {
                     if (nextActiveSize == -1) {
@@ -446,6 +449,9 @@ void genMips(TACNode *head, const char *output) {
             } else {
                 loadVar(symbolTab[node->result.place], "$t0");
                 if (argCnt < 4) {
+                    if (paramNum > argCnt) {
+                        fprintf(fp, "  sw $a%d,%d($sp)\n", argCnt, argCnt<<2);
+                    }
                     fprintf(fp, "  or $a%d,$0,$t0\n", argCnt);
                 } else {
                     if (nextActiveSize == -1) {
@@ -484,6 +490,10 @@ void genMips(TACNode *head, const char *output) {
                             "  sw $t0,%d($t1)\n",
                             symbolTab[node->opn1.place]->offset);
             }
+            break;
+        case SYSCALL:
+            fprintf(fp, "  ori $v0,$0,%d\n"
+                        "  syscall\n", node->opn1.const_int);
             break;
         }
         node = node->next;

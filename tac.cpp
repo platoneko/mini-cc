@@ -185,6 +185,9 @@ void displayTAC(TACNode *head) {
             else
                 printf("%s\n", symbolTab[node->result.place]->alias);
             break;
+        case SYSCALL:
+            printf("  syscall %d\n", node->opn1.const_int);
+            break;
         }
         node = node->next;
     } while (node != head);
@@ -1307,6 +1310,9 @@ void genTAC(ASTNode *T) {
             break;
         case ARRAY_REF:
             genRArrayRef(T);
+            break;
+        case SYSCALL:
+            T->code = gen(SYSCALL, {T->type_int, INT}, {0,0}, {0,0});
             break;
         }
     }

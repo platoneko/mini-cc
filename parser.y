@@ -44,6 +44,7 @@ extern int hasError;
 %token VAR PARAM FUNC ARG VOID ARRAY LARRAY_REF RARRAY_REF
 %token LABEL GOTO
 %token EQ NEQ LT LE GT GE
+%token SYSCALL
 
 %right ASSIGNOP COMP_ASSIGN
 %left OR
@@ -68,9 +69,13 @@ Program: ExtDefList {
         fprintf(stderr, "Detect fatal errors, compiler terminated!\n");
         exit(-1);
     }
+    #ifdef DEBUG
     displayTable();
+    #endif
     genTAC($1);
+    #ifdef DEBUG
     displayTAC($1->code);
+    #endif
     genMips($1->code, "example.asm");
 }                           
 ;
@@ -127,6 +132,7 @@ Stmt: Specifier VarDecList SEMI { $$ = mknode(2, VAR_DEF, yylineno, $1, $2); }
 | SEMI { $$ = NULL; }
 | CONTINUE SEMI { $$ = mknode(0, CONTINUE, yylineno); }
 | BREAK SEMI { $$ = mknode(0, BREAK, yylineno); }
+| SYSCALL INT SEMI { $$ = mknode(0, SYSCALL, yylineno); $$->type_int = $2; }
 ;
 
 VarDecList: VarDec { $$ = mknode(1, VAR_DEC_LIST, yylineno, $1); }
