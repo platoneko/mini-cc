@@ -1,3 +1,4 @@
 bin/
 parser.output
 *.pdf
+*.asm

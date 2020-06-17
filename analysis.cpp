@@ -648,8 +648,6 @@ static void analysisBinaryOp(ASTNode *T) {
     T->type = INT;
 }
 
-
-
 static void analysisNot(ASTNode *T) {
     analysis(T->ptr[0]);
     if (T->ptr[0]->kind == T->ptr[0]->type) {
@@ -771,9 +769,15 @@ static void analysisArrayDec(ASTNode *T) {
         symbol->ref = newArray(curType, subList.cbegin(), subList.cend());
         symbol->dim = subList.size();
         if (curLev == 0) {
+            if (gpOffset & 0x3) {
+                gpOffset = (gpOffset & 0xfffffffc) + 4;
+            }
             symbol->offset = gpOffset;
             gpOffset += arrayTab[symbol->ref]->elsize * arrayTab[symbol->ref]->high;
         } else {
+            if (spOffset & 0x3) {
+                spOffset = (spOffset & 0xfffffffc) + 4;
+            }
             symbol->offset = spOffset;
             spOffset += arrayTab[symbol->ref]->elsize * arrayTab[symbol->ref]->high;
         }

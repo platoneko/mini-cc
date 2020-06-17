@@ -71,6 +71,7 @@ Program: ExtDefList {
     displayTable();
     genTAC($1);
     displayTAC($1->code);
+    genMips($1->code, "example.asm");
 }                           
 ;
 

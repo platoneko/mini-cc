@@ -67,4 +67,6 @@ void displayTable();
 
 void genTAC(struct ASTNode *T);
 void displayTAC(struct TACNode *head);
+
+void genMips(struct TACNode *head, const char *output);
 #endif
