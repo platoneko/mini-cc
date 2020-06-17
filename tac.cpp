@@ -222,7 +222,6 @@ static int newTemp(int type) {
     sprintf(symbol->alias, "T%d", cnt);
     symbol->type = type;
     symbol->flag = 'T';
-    symbol->offset = -1;
     symbolTab.push_back(symbol);
     cnt++;
     return symbolTab.size() - 1;

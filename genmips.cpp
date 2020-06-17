@@ -30,16 +30,11 @@ static void loadVar(Symbol *var, const char *reg) {
             fprintf(fp, "  lw %s,%d($sp)\n", reg, var->offset);
             return;
         }
-    } else if (var->flag == 'V') {
-        if (var->lev == 0) {
-            fprintf(fp, "  lw %s,%d($gp)\n", reg, var->offset);
-            return;
-        } else {
-            fprintf(fp, "  lw %s,%d($sp)\n", reg, var->offset);
-            return;
-        }
+    } else if (var->flag == 'V' && var->lev == 0) {
+        fprintf(fp, "  lw %s,%d($gp)\n", reg, var->offset);
+        return;
     } else {
-        fprintf(fp, "  lw %s,-%d($sp)\n", reg, var->offset);
+        fprintf(fp, "  lw %s,%d($sp)\n", reg, var->offset);
         return;
     }
 }
@@ -62,11 +57,11 @@ static void storeVar(Symbol *var, const char *reg) {
             return;
         }
     } else {
-        if (var->offset == -1) {
-            var->offset = tempSize;
+        if (var->offset == 0) {
             tempSize += 4;
+            var->offset = -tempSize;
         }
-        fprintf(fp, "  sw %s,-%d($sp)\n", reg, var->offset);
+        fprintf(fp, "  sw %s,%d($sp)\n", reg, var->offset);
         return;
     }
 }
@@ -419,11 +414,15 @@ void genMips(TACNode *head, const char *output) {
         case FUNC_CALL:
             argCnt = 0;
             nextActiveSize = -1;
-            fprintf(fp, "  addi $sp,$sp,-%d\n"
+            tempSize += 4;
+            fprintf(fp, "  sw $ra,-%d($sp)\n"
+                        "  addi $sp,$sp,-%d\n"
                         "  jal %s\n"
                         "  nop\n"
+                        "  lw $ra,0($sp)\n"
                         "  addi $sp,$sp,%d\n",
-                        tempSize, symbolTab[node->opn1.place]->name, tempSize);
+                        tempSize, tempSize, symbolTab[node->opn1.place]->name, tempSize);
+            tempSize -= 4;
             if (node->result.kind == VAR) {
                 storeVar(symbolTab[node->result.place], "$v0");
             }
