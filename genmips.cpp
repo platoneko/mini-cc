@@ -125,7 +125,7 @@ void genMips(TACNode *head, const char *output) {
             if (node->opn2.kind == INT) {
                 fprintf(fp, "  ori $t2,$0,%d\n", node->opn2.const_int);
             } else {
-                loadVar(symbolTab[node->opn1.place], "$t2");
+                loadVar(symbolTab[node->opn2.place], "$t2");
             }
             fprintf(fp, "  beq $t1,$t2,%s\n", node->result.label);
             break;
@@ -138,7 +138,7 @@ void genMips(TACNode *head, const char *output) {
             if (node->opn2.kind == INT) {
                 fprintf(fp, "  ori $t2,$0,%d\n", node->opn2.const_int);
             } else {
-                loadVar(symbolTab[node->opn1.place], "$t2");
+                loadVar(symbolTab[node->opn2.place], "$t2");
             }
             fprintf(fp, "  bne $t1,$t2,%s\n", node->result.label);
             break;
